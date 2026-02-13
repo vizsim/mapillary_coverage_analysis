@@ -3,21 +3,18 @@
 const repoOwner = 'vizsim';
 const repoName = 'mapillary_coverage_analysis';
 
-const githubPagesPmtilesBaseURL = `https://${repoOwner}.github.io/${repoName}/preprocessing/data/`;
+const githubRawPmtilesBaseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/preprocessing/data/`;
 const localPmtilesBaseURL = `${window.location.protocol}//${window.location.host}/preprocessing/data/`;
 
-const isFileProtocol = window.location.protocol === 'file:';
 const isGitHubDomain = /(^|\.)github\.com$|(^|\.)github\.io$/.test(window.location.hostname);
+const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-// PMTiles sources must use the pmtiles:// scheme in all environments.
-// On GitHub domains (github.com + github.io) and file:// fallback to GitHub Pages PMTiles.
-const pmtilesBaseURL = (isGitHubDomain || isFileProtocol)
-    ? githubPagesPmtilesBaseURL
-    : localPmtilesBaseURL;
+// Use local PMTiles for local development, and raw GitHub files for online usage.
+const pmtilesBaseURL = isLocalDev ? localPmtilesBaseURL : githubRawPmtilesBaseURL;
 
 const pmtilesPrefix = 'pmtiles://';
 
-console.log('Environment:', (isGitHubDomain || isFileProtocol) ? 'GitHub' : 'Local');
+console.log('Environment:', isLocalDev ? 'Local' : (isGitHubDomain ? 'GitHub' : 'Online'));
 console.log('PMTiles Base URL:', pmtilesBaseURL);
 
 if (window.location.hostname === 'github.com') {
