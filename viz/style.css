@@ -220,6 +220,11 @@ body {
     max-width: 160px;
 }
 
+.pmtiles-popup-detail .maplibregl-popup-content {
+    min-width: 280px;
+    max-width: 340px;
+}
+
 .pmtiles-popup .maplibregl-popup-tip {
     border-top-color: var(--primary-bg);
 }

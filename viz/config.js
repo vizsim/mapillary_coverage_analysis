@@ -1,24 +1,29 @@
 // Configuration for the Mapillary Coverage Analysis visualization
 
-const repoOwner = 'vizsim';
-const repoName = 'mapillary_coverage_analysis';
+const REPO_OWNER = 'vizsim';
+const REPO_NAME = 'mapillary_coverage_analysis';
+const PMTILES_PREFIX = 'pmtiles://';
 
-const githubRawPmtilesBaseURL = `https://raw.githubusercontent.com/${repoOwner}/${repoName}/main/preprocessing/data/`;
-const localPmtilesBaseURL = `${window.location.protocol}//${window.location.host}/preprocessing/data/`;
+const hasWindow = typeof window !== 'undefined';
+const hostname = hasWindow ? window.location.hostname : '';
+const protocol = hasWindow ? window.location.protocol : 'https:';
+const host = hasWindow ? window.location.host : '';
 
-const isGitHubDomain = /(^|\.)github\.com$|(^|\.)github\.io$/.test(window.location.hostname);
-const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const isLocalDev = hostname === 'localhost' || hostname === '127.0.0.1';
+const isGitHubDomain = /(^|\.)github\.com$|(^|\.)github\.io$/.test(hostname);
 
-// Use local PMTiles for local development, and raw GitHub files for online usage.
+const githubRawPmtilesBaseURL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/preprocessing/data/`;
+const localPmtilesBaseURL = `${protocol}//${host}/preprocessing/data/`;
+
 const pmtilesBaseURL = isLocalDev ? localPmtilesBaseURL : githubRawPmtilesBaseURL;
 
-const pmtilesPrefix = 'pmtiles://';
+if (hasWindow) {
+    console.log('Environment:', isLocalDev ? 'Local' : (isGitHubDomain ? 'GitHub' : 'Online'));
+    console.log('PMTiles Base URL:', pmtilesBaseURL);
 
-console.log('Environment:', isLocalDev ? 'Local' : (isGitHubDomain ? 'GitHub' : 'Online'));
-console.log('PMTiles Base URL:', pmtilesBaseURL);
-
-if (window.location.hostname === 'github.com') {
-    console.warn('Detected github.com page view. For runtime testing use GitHub Pages URL, not the repository blob view.');
+    if (hostname === 'github.com') {
+        console.warn('Detected github.com page view. For runtime testing use GitHub Pages URL, not the repository blob view.');
+    }
 }
 
 // Layer configuration for hierarchical display
@@ -28,7 +33,7 @@ export const layerConfig = [
     {
         id: 'kreise',
         name: 'Landkreise',
-        pmtiles: `${pmtilesPrefix}${pmtilesBaseURL}kreise_wide.pmtiles`,
+        pmtiles: `${PMTILES_PREFIX}${pmtilesBaseURL}kreise_wide.pmtiles`,
         minZoom: 7,
         maxZoom: 24,
         labelProperty: 'Landkreis'
@@ -36,7 +41,7 @@ export const layerConfig = [
     {
         id: 'bundesland',
         name: 'Bundesländer',
-        pmtiles: `${pmtilesPrefix}${pmtilesBaseURL}bland_wide.pmtiles`,
+        pmtiles: `${PMTILES_PREFIX}${pmtilesBaseURL}bland_wide.pmtiles`,
         minZoom: 0,
         maxZoom: 7,
         labelProperty: 'Bundesland'
@@ -58,6 +63,20 @@ export const coverageColors = {
     regular: '#0098f0',   // Regular photos - light blue
     missing: '#e91e63'    // Missing coverage - pink
 };
+
+export const coverageLayerIds = ['coverage-fill', 'coverage-outline'];
+
+export const missingStreetsLayerIds = [
+    'missing-streets-missing-pathclasses',
+    'missing-streets-missing-roads',
+    'missing-streets-missing-bikelanes',
+    'missing-streets-regular-pathclasses',
+    'missing-streets-regular-roads',
+    'missing-streets-regular-bikelanes',
+    'missing-streets-pano-pathclasses',
+    'missing-streets-pano-roads',
+    'missing-streets-pano-bikelanes'
+];
 
 // Fill color gradient based on missing coverage percentage
 export const fillColorGradient = [
