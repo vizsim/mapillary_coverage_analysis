@@ -5,13 +5,13 @@ let map;
 // Determine base URL for PMTiles based on environment
 const isGitHubPages = window.location.hostname.includes('github.io');
 
-// For GitHub Pages, use URLs without pmtiles:// prefix (files are registered via protocol.add)
-// For local, use pmtiles:// URL format  
+// PMTiles should always use pmtiles:// URL format.
+// The underlying file location differs for GitHub Pages vs local.
 const pmtilesBaseURL = isGitHubPages 
     ? 'https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
     : 'http://' + window.location.host + '/preprocessing/data/';
 
-const pmtilesPrefix = isGitHubPages ? '' : 'pmtiles://';
+const pmtilesPrefix = 'pmtiles://';
 
 // Layer configuration for hierarchical display
 // Layers are defined from most detailed to least detailed
@@ -190,12 +190,18 @@ const popup = new maplibregl.Popup({
 });
 
 let currentFeatureId = null;
+let popupRafId = null;
+let pendingPopupLngLat = null;
+const popupHtmlCache = new Map();
 
 // Handle hover
 function handleCoverageHover(e) {
+    map.getCanvas().style.cursor = 'pointer';
+
     if (e.features.length > 0) {
         const feature = e.features[0];
         const featureId = feature.id || feature.properties.ID_0;
+        pendingPopupLngLat = e.lngLat;
         
         // Only update if it's a different feature
         if (featureId !== currentFeatureId) {
@@ -209,46 +215,67 @@ function handleCoverageHover(e) {
             const pano = (props.all_pano * 100).toFixed(1);
             const regular = (props.all_regular * 100).toFixed(1);
             
-            // Generate pie chart data URL
-            const pieChartUrl = generatePieChartDataUrl({
-                k1: parseFloat(pano),
-                k2: parseFloat(regular),
-                k3: parseFloat(noCover),
-                size: 100
-            });
-            
-            const pieChartHtml = pieChartUrl 
-                ? `<img src="${pieChartUrl}" style="width: 100px; height: 100px; margin: 8px 0;" alt="Coverage Chart" />`
-                : '';
-            
-            const html = `
-                <div style="font-family: sans-serif; font-size: 12px;">
-                    <strong style="font-size: 13px;">${name}</strong><br>
-                    ${pieChartHtml}
-                    <div style="margin-top: 8px;">
-                        <div style="margin: 4px 0; display: flex; align-items: center; gap: 6px;">
-                            <span style="width: 12px; height: 12px; background: #174ed9; border-radius: 2px; display: inline-block;"></span>
-                            <span style="flex: 1;">Panorama:</span>
-                            <span style="font-family: monospace; text-align: right; min-width: 35px;">${pano}%</span>
-                        </div>
-                        <div style="margin: 4px 0; display: flex; align-items: center; gap: 6px;">
-                            <span style="width: 12px; height: 12px; background: #0098f0; border-radius: 2px; display: inline-block;"></span>
-                            <span style="flex: 1;">Regular:</span>
-                            <span style="font-family: monospace; text-align: right; min-width: 35px;">${regular}%</span>
-                        </div>
-                        <div style="margin: 4px 0; display: flex; align-items: center; gap: 6px;">
-                            <span style="width: 12px; height: 12px; background: #e91e63; border-radius: 2px; display: inline-block;"></span>
-                            <span style="flex: 1;">Fehlend:</span>
-                            <span style="font-family: monospace; text-align: right; min-width: 35px;">${noCover}%</span>
+            const cacheKey = `${name}|${pano}|${regular}|${noCover}`;
+            let html = popupHtmlCache.get(cacheKey);
+
+            if (!html) {
+                const pieChartUrl = generatePieChartDataUrl({
+                    k1: parseFloat(pano),
+                    k2: parseFloat(regular),
+                    k3: parseFloat(noCover),
+                    size: 100
+                });
+
+                const pieChartHtml = pieChartUrl
+                    ? `<img src="${pieChartUrl}" style="width: 100px; height: 100px; margin: 8px 0;" alt="Coverage Chart" />`
+                    : '';
+
+                html = `
+                    <div style="font-family: sans-serif; font-size: 12px;">
+                        <strong style="font-size: 13px;">${name}</strong><br>
+                        ${pieChartHtml}
+                        <div style="margin-top: 8px;">
+                            <div style="margin: 4px 0; display: flex; align-items: center; gap: 6px;">
+                                <span style="width: 12px; height: 12px; background: #174ed9; border-radius: 2px; display: inline-block;"></span>
+                                <span style="flex: 1;">Panorama:</span>
+                                <span style="font-family: monospace; text-align: right; min-width: 35px;">${pano}%</span>
+                            </div>
+                            <div style="margin: 4px 0; display: flex; align-items: center; gap: 6px;">
+                                <span style="width: 12px; height: 12px; background: #0098f0; border-radius: 2px; display: inline-block;"></span>
+                                <span style="flex: 1;">Regular:</span>
+                                <span style="font-family: monospace; text-align: right; min-width: 35px;">${regular}%</span>
+                            </div>
+                            <div style="margin: 4px 0; display: flex; align-items: center; gap: 6px;">
+                                <span style="width: 12px; height: 12px; background: #e91e63; border-radius: 2px; display: inline-block;"></span>
+                                <span style="flex: 1;">Fehlend:</span>
+                                <span style="font-family: monospace; text-align: right; min-width: 35px;">${noCover}%</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
-            
-            popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+                `;
+
+                if (popupHtmlCache.size > 200) {
+                    const firstKey = popupHtmlCache.keys().next().value;
+                    popupHtmlCache.delete(firstKey);
+                }
+                popupHtmlCache.set(cacheKey, html);
+            }
+
+            popup.setHTML(html);
+            if (!popup.isOpen()) {
+                popup.addTo(map);
+            }
+        }
+
+        if (!popupRafId) {
+            popupRafId = requestAnimationFrame(() => {
+                if (pendingPopupLngLat && popup.isOpen()) {
+                    popup.setLngLat(pendingPopupLngLat);
+                }
+                popupRafId = null;
+            });
         }
     }
-    map.getCanvas().style.cursor = 'pointer';
 }
 
 // Handle leave
@@ -256,6 +283,11 @@ function handleCoverageLeave() {
     map.getCanvas().style.cursor = '';
     currentFeatureId = null;
     popup.remove();
+    pendingPopupLngLat = null;
+    if (popupRafId) {
+        cancelAnimationFrame(popupRafId);
+        popupRafId = null;
+    }
 }
 
 // Handle click
@@ -463,15 +495,6 @@ function addMissingStreetsLayers(map) {
 
 // Initialize PMTiles Protocol for MapLibre GL v5.x
 const protocol = new pmtiles.Protocol();
-
-// Register PMTiles files explicitly for GitHub Pages
-if (isGitHubPages) {
-    const kreisePmtiles = new pmtiles.PMTiles('https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/kreise_wide.pmtiles');
-    protocol.add(kreisePmtiles);
-    
-    const blandPmtiles = new pmtiles.PMTiles('https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/bland_wide.pmtiles');
-    protocol.add(blandPmtiles);
-}
 
 maplibregl.addProtocol("pmtiles", protocol.tile);
 

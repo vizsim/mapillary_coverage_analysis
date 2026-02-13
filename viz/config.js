@@ -3,13 +3,12 @@
 // Determine base URL for PMTiles based on environment
 const isGitHubPages = window.location.hostname.includes('github.io');
 
-// For GitHub Pages, use URLs without pmtiles:// prefix (files are registered via protocol.add)
-// For local, use pmtiles:// URL format
+// PMTiles sources must use the pmtiles:// scheme in all environments.
 const pmtilesBaseURL = isGitHubPages 
     ? 'https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
     : 'http://' + window.location.host + '/preprocessing/data/';
 
-const pmtilesPrefix = isGitHubPages ? '' : 'pmtiles://';
+const pmtilesPrefix = 'pmtiles://';
 
 console.log('Environment:', isGitHubPages ? 'GitHub Pages' : 'Local');
 console.log('PMTiles Base URL:', pmtilesBaseURL);
