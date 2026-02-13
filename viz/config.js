@@ -3,8 +3,11 @@
 // Determine base URL for PMTiles based on environment
 const isGitHubPages = window.location.hostname.includes('github.io');
 const pmtilesBaseURL = isGitHubPages 
-    ? 'https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
-    : window.location.origin + '/preprocessing/data/';
+    ? 'vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
+    : window.location.host + '/preprocessing/data/';
+
+console.log('Environment:', isGitHubPages ? 'GitHub Pages' : 'Local');
+console.log('PMTiles Base URL:', pmtilesBaseURL);
 
 // Layer configuration for hierarchical display
 // Layers are defined from most detailed to least detailed

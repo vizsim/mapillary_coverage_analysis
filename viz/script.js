@@ -5,8 +5,8 @@ let map;
 // Determine base URL for PMTiles based on environment
 const isGitHubPages = window.location.hostname.includes('github.io');
 const pmtilesBaseURL = isGitHubPages 
-    ? 'https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
-    : window.location.origin + '/preprocessing/data/';
+    ? 'vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
+    : window.location.host + '/preprocessing/data/';
 
 // Layer configuration for hierarchical display
 // Layers are defined from most detailed to least detailed
@@ -82,6 +82,7 @@ function updateCoverageLayer() {
     }
     
     console.log(`Switching to layer: ${activeLayer.name} (zoom: ${currentZoom})`);
+    console.log(`PMTiles URL: ${activeLayer.pmtiles}`);
     
     // Hide all old layers
     if (currentActiveLayer) {
