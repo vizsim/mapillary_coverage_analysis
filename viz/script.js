@@ -2,6 +2,12 @@ import { generatePieChartDataUrl } from './generatePieIcon.js';
 
 let map;
 
+// Determine base URL for PMTiles based on environment
+const isGitHubPages = window.location.hostname.includes('github.io');
+const pmtilesBaseURL = isGitHubPages 
+    ? 'https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
+    : '../preprocessing/data/';
+
 // Layer configuration for hierarchical display
 // Layers are defined from most detailed to least detailed
 // The layer with the highest minZoom that is <= current zoom will be shown
@@ -9,7 +15,7 @@ const layerConfig = [
     {
         id: 'kreise',
         name: 'Landkreise',
-        pmtiles: 'pmtiles://../preprocessing/data/kreise_wide.pmtiles',
+        pmtiles: `pmtiles://${pmtilesBaseURL}kreise_wide.pmtiles`,
         minZoom: 7,
         maxZoom: 24,
         labelProperty: 'Landkreis'
@@ -17,7 +23,7 @@ const layerConfig = [
     {
         id: 'bundesland',
         name: 'Bundesländer',
-        pmtiles: 'pmtiles://../preprocessing/data/bland_wide.pmtiles',
+        pmtiles: `pmtiles://${pmtilesBaseURL}bland_wide.pmtiles`,
         minZoom: 0,
         maxZoom: 7,
         labelProperty: 'Bundesland'
