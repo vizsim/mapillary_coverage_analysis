@@ -2,9 +2,14 @@
 
 // Determine base URL for PMTiles based on environment
 const isGitHubPages = window.location.hostname.includes('github.io');
+
+// For GitHub Pages, use URLs without pmtiles:// prefix (files are registered via protocol.add)
+// For local, use pmtiles:// URL format
 const pmtilesBaseURL = isGitHubPages 
     ? 'https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
     : 'http://' + window.location.host + '/preprocessing/data/';
+
+const pmtilesPrefix = isGitHubPages ? '' : 'pmtiles://';
 
 console.log('Environment:', isGitHubPages ? 'GitHub Pages' : 'Local');
 console.log('PMTiles Base URL:', pmtilesBaseURL);
@@ -16,7 +21,7 @@ export const layerConfig = [
     {
         id: 'kreise',
         name: 'Landkreise',
-        pmtiles: `pmtiles://${pmtilesBaseURL}kreise_wide.pmtiles`,
+        pmtiles: `${pmtilesPrefix}${pmtilesBaseURL}kreise_wide.pmtiles`,
         minZoom: 7,
         maxZoom: 24,
         labelProperty: 'Landkreis'
@@ -24,7 +29,7 @@ export const layerConfig = [
     {
         id: 'bundesland',
         name: 'Bundesländer',
-        pmtiles: `pmtiles://${pmtilesBaseURL}bland_wide.pmtiles`,
+        pmtiles: `${pmtilesPrefix}${pmtilesBaseURL}bland_wide.pmtiles`,
         minZoom: 0,
         maxZoom: 7,
         labelProperty: 'Bundesland'
