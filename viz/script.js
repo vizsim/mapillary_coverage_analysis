@@ -1,48 +1,7 @@
 import { generatePieChartDataUrl } from './generatePieIcon.js';
+import { layerConfig, mapStyles, tileServers, initialMapConfig } from './config.js';
 
 let map;
-
-// Determine base URL for PMTiles based on environment
-const isGitHubPages = window.location.hostname.includes('github.io');
-
-// PMTiles should always use pmtiles:// URL format.
-// The underlying file location differs for GitHub Pages vs local.
-const pmtilesBaseURL = isGitHubPages 
-    ? 'https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
-    : 'http://' + window.location.host + '/preprocessing/data/';
-
-const pmtilesPrefix = 'pmtiles://';
-
-// Layer configuration for hierarchical display
-// Layers are defined from most detailed to least detailed
-// The layer with the highest minZoom that is <= current zoom will be shown
-const layerConfig = [
-    {
-        id: 'kreise',
-        name: 'Landkreise',
-        pmtiles: `${pmtilesPrefix}${pmtilesBaseURL}kreise_wide.pmtiles`,
-        minZoom: 7,
-        maxZoom: 24,
-        labelProperty: 'Landkreis'
-    },
-    {
-        id: 'bundesland',
-        name: 'Bundesländer',
-        pmtiles: `${pmtilesPrefix}${pmtilesBaseURL}bland_wide.pmtiles`,
-        minZoom: 0,
-        maxZoom: 7,
-        labelProperty: 'Bundesland'
-    }
-    // Future layers can be added here (e.g., Gemeinden)
-    // {
-    //     id: 'gemeinden',
-    //     name: 'Gemeinden',
-    //     pmtiles: 'pmtiles://../preprocessing/data/gemeinden_wide.pmtiles',
-    //     minZoom: 12,
-    //     maxZoom: 24,
-    //     labelProperty: 'Gemeinde'
-    // }
-];
 
 // Track currently active layer
 let currentActiveLayer = null;
@@ -493,6 +452,31 @@ function addMissingStreetsLayers(map) {
     console.log('Missing Streets layers added');
 }
 
+function addMissingStreetsSources() {
+    if (!map) return;
+
+    map.addSource('mapillary-roads', {
+        type: 'vector',
+        tiles: tileServers.roads.tiles,
+        minzoom: tileServers.roads.minzoom,
+        maxzoom: tileServers.roads.maxzoom
+    });
+
+    map.addSource('bike-lanes', {
+        type: 'vector',
+        tiles: tileServers.bikeLanes.tiles,
+        minzoom: tileServers.bikeLanes.minzoom,
+        maxzoom: tileServers.bikeLanes.maxzoom
+    });
+
+    map.addSource('mapillary-roadspathclasses', {
+        type: 'vector',
+        tiles: tileServers.roadsPathClasses.tiles,
+        minzoom: tileServers.roadsPathClasses.minzoom,
+        maxzoom: tileServers.roadsPathClasses.maxzoom
+    });
+}
+
 // Initialize PMTiles Protocol for MapLibre GL v5.x
 const protocol = new pmtiles.Protocol();
 
@@ -501,9 +485,9 @@ maplibregl.addProtocol("pmtiles", protocol.tile);
 // Initialize map with OpenFreeMap
 map = new maplibregl.Map({
     container: 'map',
-    style: 'https://tiles.openfreemap.org/styles/positron',
-    center: [10.5, 51.5],
-    zoom: 6
+    style: mapStyles.light,
+    center: initialMapConfig.center,
+    zoom: initialMapConfig.zoom
 });
 
 // UI Elements - only if they exist
@@ -556,9 +540,7 @@ if (darkModeToggle) {
         
         // Switch basemap style
         if (map) {
-            const newStyle = next === 'dark' 
-                ? 'https://tiles.openfreemap.org/styles/dark'
-                : 'https://tiles.openfreemap.org/styles/positron';
+            const newStyle = next === 'dark' ? mapStyles.dark : mapStyles.light;
             
             map.setStyle(newStyle);
             
@@ -568,26 +550,7 @@ if (darkModeToggle) {
                 currentActiveLayer = null;
                 
                 // Add Missing Streets sources
-                map.addSource("mapillary-roads", {
-                    type: "vector",
-                    tiles: ["https://tiles.tilda-geo.de/atlas_generalized_roads/{z}/{x}/{y}"],
-                    minzoom: 9,
-                    maxzoom: 22
-                });
-
-                map.addSource("bike-lanes", {
-                    type: "vector",
-                    tiles: ["https://tiles.tilda-geo.de/atlas_generalized_bikelanes/{z}/{x}/{y}"],
-                    minzoom: 9,
-                    maxzoom: 22
-                });
-
-                map.addSource("mapillary-roadspathclasses", {
-                    type: "vector",
-                    tiles: ["https://tiles.tilda-geo.de/atlas_generalized_roadspathclasses/{z}/{x}/{y}"],
-                    minzoom: 11,
-                    maxzoom: 22
-                });
+                addMissingStreetsSources();
 
                 setTimeout(() => {
                     // Re-add coverage layer first
@@ -697,26 +660,7 @@ map.on('load', () => {
     console.log('Map loaded');
     
     // Add Missing Streets sources
-    map.addSource("mapillary-roads", {
-        type: "vector",
-        tiles: ["https://tiles.tilda-geo.de/atlas_generalized_roads/{z}/{x}/{y}"],
-        minzoom: 9,
-        maxzoom: 22
-    });
-
-    map.addSource("bike-lanes", {
-        type: "vector",
-        tiles: ["https://tiles.tilda-geo.de/atlas_generalized_bikelanes/{z}/{x}/{y}"],
-        minzoom: 9,
-        maxzoom: 22
-    });
-
-    map.addSource("mapillary-roadspathclasses", {
-        type: "vector",
-        tiles: ["https://tiles.tilda-geo.de/atlas_generalized_roadspathclasses/{z}/{x}/{y}"],
-        minzoom: 11,
-        maxzoom: 22
-    });
+    addMissingStreetsSources();
 
     // Wait a bit for sources to load
     setTimeout(() => {
