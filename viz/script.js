@@ -6,7 +6,7 @@ let map;
 const isGitHubPages = window.location.hostname.includes('github.io');
 const pmtilesBaseURL = isGitHubPages 
     ? 'https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
-    : '../preprocessing/data/';
+    : window.location.origin + '/preprocessing/data/';
 
 // Layer configuration for hierarchical display
 // Layers are defined from most detailed to least detailed
