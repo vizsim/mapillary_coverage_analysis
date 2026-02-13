@@ -490,6 +490,30 @@ map = new maplibregl.Map({
     zoom: initialMapConfig.zoom
 });
 
+map.on('error', (event) => {
+    const sourceId = event?.sourceId || event?.source?.id || event?.tile?.tileID?.canonical?.source;
+    const tileInfo = event?.tile?.tileID?.canonical
+        ? {
+            z: event.tile.tileID.canonical.z,
+            x: event.tile.tileID.canonical.x,
+            y: event.tile.tileID.canonical.y
+        }
+        : null;
+
+    const details = {
+        message: event?.error?.message || 'Unknown map error',
+        sourceId: sourceId || null,
+        tile: tileInfo,
+        status: event?.sourceDataType || null
+    };
+
+    console.error('MapLibre source error:', details);
+
+    if (details.message === 'Decoding failed.' && details.sourceId && details.sourceId !== 'coverage-data') {
+        console.warn(`Decode error is from source "${details.sourceId}" (not PMTiles coverage-data).`);
+    }
+});
+
 // UI Elements - only if they exist
 const toggleInfoBtn = document.getElementById('toggle-info');
 const closeInfoBtn = document.getElementById('close-info');

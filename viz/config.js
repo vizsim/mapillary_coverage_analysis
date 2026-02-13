@@ -1,17 +1,28 @@
 // Configuration for the Mapillary Coverage Analysis visualization
 
-// Determine base URL for PMTiles based on environment
-const isGitHubPages = window.location.hostname.includes('github.io');
+const repoOwner = 'vizsim';
+const repoName = 'mapillary_coverage_analysis';
+
+const githubPagesPmtilesBaseURL = `https://${repoOwner}.github.io/${repoName}/preprocessing/data/`;
+const localPmtilesBaseURL = `${window.location.protocol}//${window.location.host}/preprocessing/data/`;
+
+const isFileProtocol = window.location.protocol === 'file:';
+const isGitHubDomain = /(^|\.)github\.com$|(^|\.)github\.io$/.test(window.location.hostname);
 
 // PMTiles sources must use the pmtiles:// scheme in all environments.
-const pmtilesBaseURL = isGitHubPages 
-    ? 'https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/'
-    : 'http://' + window.location.host + '/preprocessing/data/';
+// On GitHub domains (github.com + github.io) and file:// fallback to GitHub Pages PMTiles.
+const pmtilesBaseURL = (isGitHubDomain || isFileProtocol)
+    ? githubPagesPmtilesBaseURL
+    : localPmtilesBaseURL;
 
 const pmtilesPrefix = 'pmtiles://';
 
-console.log('Environment:', isGitHubPages ? 'GitHub Pages' : 'Local');
+console.log('Environment:', (isGitHubDomain || isFileProtocol) ? 'GitHub' : 'Local');
 console.log('PMTiles Base URL:', pmtilesBaseURL);
+
+if (window.location.hostname === 'github.com') {
+    console.warn('Detected github.com page view. For runtime testing use GitHub Pages URL, not the repository blob view.');
+}
 
 // Layer configuration for hierarchical display
 // Layers are defined from most detailed to least detailed
