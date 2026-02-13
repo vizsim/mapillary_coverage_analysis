@@ -25,7 +25,7 @@
                     </label>
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <h3 style="font-size: 13px; margin: 0; font-weight: 600;">
-                            Mapillary Coverage auf Hauptstraßen je Landkreis
+                            Mapillary Coverage auf Hauptstraßen
                         </h3>
                         <span class="info-icon" title="">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -39,7 +39,8 @@
                                 • <strong>trunk</strong> (+ trunk_link)<br>
                                 • <strong>primary</strong> (+ primary_link)<br>
                                 • <strong>secondary</strong> (+ secondary_link)<br>
-                                • <strong>tertiary</strong> (+ tertiary_link)
+                                • <strong>tertiary</strong> (+ tertiary_link)<br><br>
+                                <em>Die Karte zeigt je nach Zoomstufe:<br>Bundesländer (Zoom &lt; 8) oder Landkreise (Zoom ≥ 8)</em>
                             </span>
                         </span>
                     </div>
@@ -87,6 +88,9 @@
                                 </span>
                             </span>
                         </div>
+                    </div>
+                    <div id="streets-zoom-warning" style="display: none; padding: 8px 12px; background-color: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 4px; color: var(--text-color); font-size: 12px; margin-bottom: 8px;">
+                        ℹ️ Daten sind ab Zoomstufe 9+ sichtbar.
                     </div>
                     <div id="streets-legend">
                         <div class="legend-item">
@@ -146,6 +150,6 @@
             }
         })();
     </script>
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>

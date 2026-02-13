@@ -216,7 +216,8 @@ body {
     border-radius: 6px;
     box-shadow: var(--shadow);
     border: 1px solid var(--border-color);
-    min-width: 180px;
+    min-width: 130px;
+    max-width: 160px;
 }
 
 .pmtiles-popup .maplibregl-popup-tip {
