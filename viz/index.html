@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapillary Coverage Analysis</title>
+    <link href="https://unpkg.com/maplibre-gl@5.18.0/dist/maplibre-gl.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="map"></div>
+    
+    <!-- Info Panel mit Legende -->
+    <div class="info-panel">
+        <div class="info-header">
+            <h1>Mapillary Coverage</h1>
+            <button class="btn-close" id="close-info" title="Schließen">×</button>
+        </div>
+        <div class="info-content">
+            <div class="legend">
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-kreise-layer" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <h3 style="font-size: 13px; margin: 0; font-weight: 600;">
+                            Mapillary Coverage auf Hauptstraßen je Landkreis
+                        </h3>
+                        <span class="info-icon" title="">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="12" y1="16" x2="12" y2="12"></line>
+                                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                            </svg>
+                            <span class="info-tooltip">
+                                Die Coverage wird für folgende Straßentypen berechnet:<br><br>
+                                • <strong>motorway</strong> (+ motorway_link)<br>
+                                • <strong>trunk</strong> (+ trunk_link)<br>
+                                • <strong>primary</strong> (+ primary_link)<br>
+                                • <strong>secondary</strong> (+ secondary_link)<br>
+                                • <strong>tertiary</strong> (+ tertiary_link)
+                            </span>
+                        </span>
+                    </div>
+                </div>
+                <div id="kreise-legend">
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #174ed9;"></span>
+                    <span>≥ 80% abgedeckt</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #0098f0;"></span>
+                    <span>50-80% abgedeckt</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #c026d3;"></span>
+                    <span>20-50% abgedeckt</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-color" style="background: #e91e63;"></span>
+                    <span>&lt; 20% abgedeckt</span>
+                </div>
+                </div>
+                
+                <!-- Straßensegmente Sektion -->
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-streets-layer">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <h3 style="font-size: 13px; margin: 0; font-weight: 600;">Straßensegmente</h3>
+                            <span class="info-icon" title="">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                                <span class="info-tooltip">
+                                    Straßensegmente mit Mapillary-Fotos:<br><br>
+                                    • <strong>Panorama</strong>: 360° Rundumaufnahmen<br>
+                                    • <strong>Regulär</strong>: Standard-Fotos<br>
+                                    • <strong>Fehlend</strong>: Keine Aufnahmen vorhanden<br><br>
+                                    Daten von <a href="https://osm-verkehrswende.org" target="_blank" style="color: inherit;">osm-verkehrswende.org</a>
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="streets-legend">
+                        <div class="legend-item">
+                            <span class="legend-line" style="background: #174ed9;"></span>
+                            <span>...ausreichend Panorama-Fotos</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-line" style="background: #0098f0;"></span>
+                            <span>...ausreichend regulären Fotos</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-line" style="background: #e91e63;"></span>
+                            <span>...fehlenden Fotos</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bottom Left UI -->
+    <div id="bottom-left-ui-container">
+        <div class="map-controls">
+            <button id="toggle-info" class="map-btn" title="Informationen">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+            </button>
+            <button id="dark-mode-toggle" class="map-btn" title="Dark Mode">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/maplibre-gl@5.18.0"></script>
+    <script src="https://unpkg.com/pmtiles@4.3.0/dist/pmtiles.js"></script>
+    <script>
+        // Initialize theme
+        (function() {
+            const themeOverride = localStorage.getItem('theme-override');
+            if (themeOverride === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else if (themeOverride === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>

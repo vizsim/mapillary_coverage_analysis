@@ -1,0 +1,5 @@
+# PBF files (OpenStreetMap data)
+*.pbf
+
+# Parquet files
+*.parquet

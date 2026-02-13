@@ -1,0 +1,461 @@
+let map;
+
+// Function to add Missing Streets layers
+function addMissingStreetsLayers(map) {
+    // Check if all sources are loaded
+    if (!map.getSource("mapillary-roads") || !map.getSource("bike-lanes") || !map.getSource("mapillary-roadspathclasses")) {
+        setTimeout(() => {
+            if (map.getSource("mapillary-roads") && map.getSource("bike-lanes") && map.getSource("mapillary-roadspathclasses")) {
+                addMissingStreetsLayers(map);
+            }
+        }, 1000);
+        return;
+    }
+
+    // Layer für fehlende Fotos (rosa) - aus roadsPathClasses
+    map.addLayer({
+        id: 'missing-streets-missing-pathclasses',
+        type: 'line',
+        source: 'mapillary-roadspathclasses',
+        'source-layer': 'roadsPathClasses',
+        minzoom: 15,
+        maxzoom: 22,
+        layout: { visibility: 'none' },
+        paint: {
+            'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 12, 1.5, 15, 2],
+            'line-color': '#e91e63',
+            'line-opacity': 0.7,
+        },
+        filter: [
+            'any',
+            ['==', ['get', 'mapillary_coverage'], 'missing'],
+            ['!', ['has', 'mapillary_coverage']],
+            ['==', ['get', 'mapillary_coverage'], '']
+        ],
+    });
+
+    // Layer für fehlende Fotos (rosa) - aus roads
+    map.addLayer({
+        id: 'missing-streets-missing-roads',
+        type: 'line',
+        source: 'mapillary-roads',
+        'source-layer': 'roads',
+        minzoom: 9,
+        maxzoom: 22,
+        layout: { visibility: 'none' },
+        paint: {
+            'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 12, 1.5, 15, 2],
+            'line-color': '#e91e63',
+            'line-opacity': 0.7,
+        },
+        filter: [
+            'any',
+            ['==', ['get', 'mapillary_coverage'], 'missing'],
+            ['!', ['has', 'mapillary_coverage']],
+            ['==', ['get', 'mapillary_coverage'], '']
+        ],
+    });
+
+    // Layer für fehlende Fotos (rosa) - aus bikelanes
+    map.addLayer({
+        id: 'missing-streets-missing-bikelanes',
+        type: 'line',
+        source: 'bike-lanes',
+        'source-layer': 'bikelanes',
+        minzoom: 11,
+        maxzoom: 22,
+        layout: { visibility: 'none' },
+        paint: {
+            'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 12, 1.5, 15, 2],
+            'line-color': '#e91e63',
+            'line-opacity': 0.7,
+        },
+        filter: [
+            'any',
+            ['==', ['get', 'mapillary_coverage'], 'missing'],
+            ['!', ['has', 'mapillary_coverage']],
+            ['==', ['get', 'mapillary_coverage'], '']
+        ],
+    });
+
+    // Layer für regular Fotos (blau) - aus roadsPathClasses
+    map.addLayer({
+        id: 'missing-streets-regular-pathclasses',
+        type: 'line',
+        source: 'mapillary-roadspathclasses',
+        'source-layer': 'roadsPathClasses',
+        minzoom: 15,
+        maxzoom: 22,
+        layout: { visibility: 'none' },
+        paint: {
+            'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 12, 1.5, 15, 2],
+            'line-color': '#0098f0',
+            'line-opacity': 0.7,
+        },
+        filter: [
+            '==', ['get', 'mapillary_coverage'], 'regular'
+        ],
+    });
+
+    // Layer für regular Fotos (blau) - aus roads
+    map.addLayer({
+        id: 'missing-streets-regular-roads',
+        type: 'line',
+        source: 'mapillary-roads',
+        'source-layer': 'roads',
+        minzoom: 9,
+        maxzoom: 22,
+        layout: { visibility: 'none' },
+        paint: {
+            'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 12, 1.5, 15, 2],
+            'line-color': '#0098f0',
+            'line-opacity': 0.7,
+        },
+        filter: [
+            '==', ['get', 'mapillary_coverage'], 'regular'
+        ],
+    });
+
+    // Layer für regular Fotos (blau) - aus bikelanes
+    map.addLayer({
+        id: 'missing-streets-regular-bikelanes',
+        type: 'line',
+        source: 'bike-lanes',
+        'source-layer': 'bikelanes',
+        minzoom: 11,
+        maxzoom: 22,
+        layout: { visibility: 'none' },
+        paint: {
+            'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 12, 1.5, 15, 2],
+            'line-color': '#0098f0',
+            'line-opacity': 0.7,
+        },
+        filter: [
+            '==', ['get', 'mapillary_coverage'], 'regular'
+        ],
+    });
+
+    // Layer für Panorama-Fotos (dunkelblau) - aus roadsPathClasses
+    map.addLayer({
+        id: 'missing-streets-pano-pathclasses',
+        type: 'line',
+        source: 'mapillary-roadspathclasses',
+        'source-layer': 'roadsPathClasses',
+        minzoom: 15,
+        maxzoom: 22,
+        layout: { visibility: 'none' },
+        paint: {
+            'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 12, 1.5, 15, 2],
+            'line-color': '#174ed9',
+            'line-opacity': 0.7,
+        },
+        filter: [
+            '==', ['get', 'mapillary_coverage'], 'pano'
+        ],
+    });
+
+    // Layer für Panorama-Fotos (dunkelblau) - aus roads
+    map.addLayer({
+        id: 'missing-streets-pano-roads',
+        type: 'line',
+        source: 'mapillary-roads',
+        'source-layer': 'roads',
+        minzoom: 9,
+        maxzoom: 22,
+        layout: { visibility: 'none' },
+        paint: {
+            'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 12, 1.5, 15, 2],
+            'line-color': '#174ed9',
+            'line-opacity': 0.7,
+        },
+        filter: [
+            '==', ['get', 'mapillary_coverage'], 'pano'
+        ],
+    });
+
+    // Layer für Panorama-Fotos (dunkelblau) - aus bikelanes
+    map.addLayer({
+        id: 'missing-streets-pano-bikelanes',
+        type: 'line',
+        source: 'bike-lanes',
+        'source-layer': 'bikelanes',
+        minzoom: 11,
+        maxzoom: 22,
+        layout: { visibility: 'none' },
+        paint: {
+            'line-width': ['interpolate', ['linear'], ['zoom'], 9, 0.5, 12, 1.5, 15, 2],
+            'line-color': '#174ed9',
+            'line-opacity': 0.7,
+        },
+        filter: [
+            '==', ['get', 'mapillary_coverage'], 'pano'
+        ],
+    });
+
+    console.log('Missing Streets layers added');
+}
+
+// Initialize PMTiles Protocol for MapLibre GL v5.x
+const protocol = new pmtiles.Protocol();
+maplibregl.addProtocol("pmtiles", protocol.tile);
+
+// Initialize map with OpenFreeMap
+map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/positron',
+    center: [10.5, 51.5],
+    zoom: 6
+});
+
+// UI Elements - only if they exist
+const toggleInfoBtn = document.getElementById('toggle-info');
+const closeInfoBtn = document.getElementById('close-info');
+const infoPanel = document.querySelector('.info-panel');
+const darkModeToggle = document.getElementById('dark-mode-toggle');
+const toggleStreetsCheckbox = document.getElementById('toggle-streets-layer');
+const streetsLegend = document.getElementById('streets-legend');
+const toggleKreiseCheckbox = document.getElementById('toggle-kreise-layer');
+const kreiseLegend = document.getElementById('kreise-legend');
+
+// Info Panel Toggle
+if (toggleInfoBtn && infoPanel) {
+    toggleInfoBtn.addEventListener('click', () => {
+        infoPanel.style.display = infoPanel.style.display === 'none' ? 'flex' : 'none';
+    });
+}
+
+if (closeInfoBtn && infoPanel) {
+    closeInfoBtn.addEventListener('click', () => {
+        infoPanel.style.display = 'none';
+    });
+}
+
+// Dark Mode Toggle
+if (darkModeToggle) {
+    darkModeToggle.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme-override', next);
+    });
+}
+
+// Streets Layer Toggle (in Legend)
+if (toggleStreetsCheckbox) {
+    toggleStreetsCheckbox.addEventListener('change', (e) => {
+        if (!map) return;
+        
+        const isChecked = e.target.checked;
+        const visibility = isChecked ? 'visible' : 'none';
+        
+        // Toggle streets legend visibility
+        if (streetsLegend) {
+            streetsLegend.style.display = isChecked ? 'flex' : 'none';
+        }
+        
+        // Toggle Missing Streets layers
+        const missingStreetsLayers = [
+            'missing-streets-missing-pathclasses',
+            'missing-streets-missing-roads',
+            'missing-streets-missing-bikelanes',
+            'missing-streets-regular-pathclasses',
+            'missing-streets-regular-roads',
+            'missing-streets-regular-bikelanes',
+            'missing-streets-pano-pathclasses',
+            'missing-streets-pano-roads',
+            'missing-streets-pano-bikelanes'
+        ];
+        
+        missingStreetsLayers.forEach(layerId => {
+            if (map.getLayer(layerId)) {
+                map.setLayoutProperty(layerId, 'visibility', visibility);
+            }
+        });
+        
+        console.log('Streets layer:', isChecked ? 'shown' : 'hidden');
+    });
+}
+
+// Kreise Layer Toggle (in Legend)
+if (toggleKreiseCheckbox) {
+    toggleKreiseCheckbox.addEventListener('change', (e) => {
+        if (!map) return;
+        
+        const isChecked = e.target.checked;
+        const visibility = isChecked ? 'visible' : 'none';
+        
+        // Toggle kreise legend visibility
+        if (kreiseLegend) {
+            kreiseLegend.style.display = isChecked ? 'flex' : 'none';
+        }
+        
+        // Toggle Kreise layers
+        if (map.getLayer('coverage-fill')) {
+            map.setLayoutProperty('coverage-fill', 'visibility', visibility);
+        }
+        if (map.getLayer('coverage-outline')) {
+            map.setLayoutProperty('coverage-outline', 'visibility', visibility);
+        }
+        
+        console.log('Kreise layer:', isChecked ? 'shown' : 'hidden');
+    });
+}
+
+map.on('load', () => {
+    console.log('Map loaded');
+    
+    // Add PMTiles source
+    const pmtilesPath = 'pmtiles://../preprocessing/data/kreise_wide.pmtiles';
+    console.log('Loading PMTiles from:', pmtilesPath);
+    
+    map.addSource('default', {
+        type: 'vector',
+        url: pmtilesPath
+    });
+
+    // Add Missing Streets sources
+    map.addSource("mapillary-roads", {
+        type: "vector",
+        tiles: ["https://tiles.tilda-geo.de/atlas_generalized_roads/{z}/{x}/{y}"],
+        minzoom: 9,
+        maxzoom: 22
+    });
+
+    map.addSource("bike-lanes", {
+        type: "vector",
+        tiles: ["https://tiles.tilda-geo.de/atlas_generalized_bikelanes/{z}/{x}/{y}"],
+        minzoom: 9,
+        maxzoom: 22
+    });
+
+    map.addSource("mapillary-roadspathclasses", {
+        type: "vector",
+        tiles: ["https://tiles.tilda-geo.de/atlas_generalized_roadspathclasses/{z}/{x}/{y}"],
+        minzoom: 11,
+        maxzoom: 22
+    });
+
+    // Wait a bit for source to load
+    setTimeout(() => {
+        console.log('Adding layers...');
+        
+        try {
+            // Add coverage layer
+            map.addLayer({
+                id: 'coverage-fill',
+                type: 'fill',
+                source: 'default',
+                'source-layer': 'default',
+                paint: {
+                    'fill-color': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'all_no_cover'],
+                        0, '#174ed9',      // 0% fehlend = dunkelblau (sehr gut)
+                        0.2, '#0098f0',    // 20% fehlend = hellblau (gut)
+                        0.5, '#c026d3',    // 50% fehlend = lila (mittel)
+                        0.8, '#e91e63',    // 80% fehlend = pink (schlecht)
+                        1, '#be123c'       // 100% fehlend = dunkelpink (sehr schlecht)
+                    ],
+                    'fill-opacity': 0.7
+                }
+            });
+            console.log('coverage-fill layer added');
+
+            // Add outline layer
+            map.addLayer({
+                id: 'coverage-outline',
+                type: 'line',
+                source: 'default',
+                'source-layer': 'default',
+                paint: {
+                    'line-color': '#e3e5e9',
+                    'line-width': [
+                        'interpolate',
+                        ['exponential', 1.],
+                        ['zoom'],
+                        5, 0.5,
+                        8, 1.,
+                        12, 2.
+                    ],
+                    'line-opacity': 0.6
+                }
+            });
+            console.log('coverage-outline layer added');
+
+            // Add Missing Streets layers
+            addMissingStreetsLayers(map);
+
+            // Create popup for tooltips
+            const popup = new maplibregl.Popup({
+                closeButton: false,
+                closeOnClick: false,
+                className: 'pmtiles-popup',
+                maxWidth: '250px'
+            });
+
+            let currentFeatureId = null;
+
+            // Add hover effect and tooltip
+            map.on('mousemove', 'coverage-fill', (e) => {
+                if (e.features.length > 0) {
+                    const feature = e.features[0];
+                    const featureId = feature.id || feature.properties.ID_0;
+                    
+                    // Only update if it's a different feature
+                    if (featureId !== currentFeatureId) {
+                        currentFeatureId = featureId;
+                        const props = feature.properties;
+                        
+                        // Build tooltip HTML
+                        const name = props.Landkreis || props.NAME_2 || props.NAME_1 || 'Unbekannt';
+                        const noCover = (props.all_no_cover * 100).toFixed(1);
+                        const pano = (props.all_pano * 100).toFixed(1);
+                        const regular = (props.all_regular * 100).toFixed(1);
+                        
+                        const html = `
+                            <div style="font-family: sans-serif; font-size: 12px;">
+                                <strong style="font-size: 13px;">${name}</strong><br>
+                                <div style="margin-top: 6px;">
+                                    <div style="margin: 3px 0;">📷 Panorama: ${pano}%</div>
+                                    <div style="margin: 3px 0;">📸 Regular: ${regular}%</div>
+                                    <div style="margin: 3px 0;">❌ Fehlend: ${noCover}%</div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+                    }
+                }
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', 'coverage-fill', () => {
+                map.getCanvas().style.cursor = '';
+                currentFeatureId = null;
+                popup.remove();
+            });
+
+            // Show feature info on click
+            map.on('click', 'coverage-fill', (e) => {
+                if (e.features.length > 0) {
+                    const feature = e.features[0];
+                    console.log('Feature properties:', feature.properties);
+                }
+            });
+
+        } catch (error) {
+            console.error('Error adding layers:', error);
+        }
+    }, 500);
+});
+
+map.on('error', (e) => {
+    console.error('Map error:', e);
+});
+
+map.on('sourcedata', (e) => {
+    if (e.sourceId === 'default') {
+        console.log('PMTiles source data event:', e.isSourceLoaded);
+    }
+});
