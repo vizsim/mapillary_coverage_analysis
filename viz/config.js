@@ -7,7 +7,7 @@ export const layerConfig = [
     {
         id: 'kreise',
         name: 'Landkreise',
-        pmtiles: 'pmtiles://https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/kreise_wide.pmtiles',
+        pmtiles: 'pmtiles://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/kreise_wide.pmtiles',
         minZoom: 7,
         maxZoom: 24,
         labelProperty: 'Landkreis'
@@ -15,7 +15,7 @@ export const layerConfig = [
     {
         id: 'bundesland',
         name: 'Bundesländer',
-        pmtiles: 'pmtiles://https://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/bland_wide.pmtiles',
+        pmtiles: 'pmtiles://vizsim.github.io/mapillary_coverage_analysis/preprocessing/data/bland_wide.pmtiles',
         minZoom: 0,
         maxZoom: 7,
         labelProperty: 'Bundesland'
