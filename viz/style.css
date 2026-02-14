@@ -137,6 +137,34 @@ body {
     gap: 4px;
 }
 
+.github-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.status-badge {
+    height: 20px;
+    max-width: 100%;
+}
+
+.github-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--primary-text);
+    text-decoration: none;
+    opacity: 0.75;
+    transition: opacity 0.2s;
+}
+
+.github-link:hover {
+    opacity: 1;
+}
+
 .legend-item {
     display: flex;
     align-items: center;
