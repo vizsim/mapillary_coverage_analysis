@@ -1,4 +1,17 @@
 import { generatePieChartDataUrl } from './generatePieIcon.js';
+import { whenSourcesAvailable } from './sourceReadiness.js';
+import { attachMapErrorTelemetry } from './errorTelemetry.js';
+import { createCoveragePopupHtml, createCoverageDetailPopupHtml } from './popupTemplates.js';
+import { LruCache } from './utils/lruCache.js';
+import {
+    hasLayer,
+    hasSource,
+    removeLayerIfExists,
+    removeSourceIfExists,
+    addSourceIfMissing,
+    addLayerIfMissing,
+    setLayersVisibility
+} from './mapSafeOps.js';
 import {
     layerConfig,
     mapStyles,
@@ -66,7 +79,7 @@ const MISSING_STREETS_CATEGORY_DEFS = [
 let map;
 let currentActiveLayer = null;
 let coverageLayerVisible = true;
-let missingStreetsRetryTimeoutId = null;
+let disposeMissingStreetsReadinessWatch = null;
 
 const popup = new maplibregl.Popup({
     closeButton: false,
@@ -86,8 +99,8 @@ const detailPopup = new maplibregl.Popup({
 let currentFeatureId = null;
 let popupRafId = null;
 let pendingPopupLngLat = null;
-const popupHtmlCache = new Map();
-const detailPopupHtmlCache = new Map();
+const popupHtmlCache = new LruCache(200);
+const detailPopupHtmlCache = new LruCache(200);
 
 const coverageBreakdownConfig = [
     { key: 'all', label: 'Gesamt' },
@@ -97,43 +110,6 @@ const coverageBreakdownConfig = [
     { key: 'secondary', label: 'Secondary' },
     { key: 'tertiary', label: 'Tertiary' }
 ];
-
-function hasLayer(layerId) {
-    return Boolean(map && map.getLayer(layerId));
-}
-
-function hasSource(sourceId) {
-    return Boolean(map && map.getSource(sourceId));
-}
-
-function removeLayerIfExists(layerId) {
-    if (!map || !hasLayer(layerId)) return;
-    map.removeLayer(layerId);
-}
-
-function removeSourceIfExists(sourceId) {
-    if (!map || !hasSource(sourceId)) return;
-    map.removeSource(sourceId);
-}
-
-function addSourceIfMissing(sourceId, sourceConfig) {
-    if (!map || hasSource(sourceId)) return;
-    map.addSource(sourceId, sourceConfig);
-}
-
-function addLayerIfMissing(layerConfigEntry) {
-    if (!map || hasLayer(layerConfigEntry.id)) return;
-    map.addLayer(layerConfigEntry);
-}
-
-function setLayerVisibilityIfExists(layerId, visibility) {
-    if (!map || !hasLayer(layerId)) return;
-    map.setLayoutProperty(layerId, 'visibility', visibility);
-}
-
-function setLayersVisibility(layerIds, visibility) {
-    layerIds.forEach((layerId) => setLayerVisibilityIfExists(layerId, visibility));
-}
 
 function getActiveLayerConfig(zoom) {
     let activeLayer = null;
@@ -178,7 +154,7 @@ function createCoverageOutlineLayer() {
 
 function applyCoverageVisibility() {
     const visibility = coverageLayerVisible ? 'visible' : 'none';
-    setLayersVisibility(coverageLayerIds, visibility);
+    setLayersVisibility(map, coverageLayerIds, visibility);
 }
 
 function updateCoverageLayer() {
@@ -197,19 +173,16 @@ function updateCoverageLayer() {
         return;
     }
 
-    console.log(`Switching to layer: ${activeLayer.name} (zoom: ${currentZoom})`);
-    console.log(`PMTiles URL: ${activeLayer.pmtiles}`);
+    coverageLayerIds.forEach((layerId) => removeLayerIfExists(map, layerId));
+    removeSourceIfExists(map, COVERAGE_SOURCE_ID);
 
-    coverageLayerIds.forEach(removeLayerIfExists);
-    removeSourceIfExists(COVERAGE_SOURCE_ID);
-
-    addSourceIfMissing(COVERAGE_SOURCE_ID, {
+    addSourceIfMissing(map, COVERAGE_SOURCE_ID, {
         type: 'vector',
         url: activeLayer.pmtiles
     });
 
-    addLayerIfMissing(createCoverageFillLayer());
-    addLayerIfMissing(createCoverageOutlineLayer());
+    addLayerIfMissing(map, createCoverageFillLayer());
+    addLayerIfMissing(map, createCoverageOutlineLayer());
 
     currentActiveLayer = activeLayer;
     attachCoverageLayerEvents();
@@ -223,7 +196,7 @@ function attachCoverageLayerEvents() {
     map.off('mouseleave', COVERAGE_FILL_LAYER_ID, handleCoverageLeave);
     map.off('click', COVERAGE_FILL_LAYER_ID, handleCoverageClick);
 
-    if (!hasLayer(COVERAGE_FILL_LAYER_ID)) return;
+    if (!hasLayer(map, COVERAGE_FILL_LAYER_ID)) return;
 
     map.on('mousemove', COVERAGE_FILL_LAYER_ID, handleCoverageHover);
     map.on('mouseleave', COVERAGE_FILL_LAYER_ID, handleCoverageLeave);
@@ -236,22 +209,13 @@ function toPercent(value) {
     return (numericValue * 100).toFixed(1);
 }
 
-function escapeHtml(input) {
-    return String(input)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-}
-
 function getFeatureLabel(props) {
     const labelProperty = currentActiveLayer?.labelProperty || 'Name';
     return props[labelProperty] || props.NAME_2 || props.NAME_1 || 'Unbekannt';
 }
 
 function getPopupHtml(props) {
-    const name = escapeHtml(getFeatureLabel(props));
+    const name = getFeatureLabel(props);
     const noCover = toPercent(props.all_no_cover);
     const pano = toPercent(props.all_pano);
     const regular = toPercent(props.all_regular);
@@ -267,38 +231,15 @@ function getPopupHtml(props) {
         size: 100
     });
 
-    const pieChartHtml = pieChartUrl
-        ? `<img src="${pieChartUrl}" style="width: 100px; height: 100px; margin: 8px 0;" alt="Coverage Chart" />`
-        : '';
+    const html = createCoveragePopupHtml({
+        name,
+        pieChartUrl,
+        pano,
+        regular,
+        missing: noCover,
+        colors: coverageColors
+    });
 
-    const html = `
-        <div style="font-family: sans-serif; font-size: 12px;">
-            <strong style="font-size: 13px;">${name}</strong><br>
-            ${pieChartHtml}
-            <div style="margin-top: 8px;">
-                <div style="margin: 4px 0; display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; background: ${coverageColors.pano}; border-radius: 2px; display: inline-block;"></span>
-                    <span style="flex: 1;">Panorama:</span>
-                    <span style="font-family: monospace; text-align: right; min-width: 35px;">${pano}%</span>
-                </div>
-                <div style="margin: 4px 0; display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; background: ${coverageColors.regular}; border-radius: 2px; display: inline-block;"></span>
-                    <span style="flex: 1;">Regular:</span>
-                    <span style="font-family: monospace; text-align: right; min-width: 35px;">${regular}%</span>
-                </div>
-                <div style="margin: 4px 0; display: flex; align-items: center; gap: 6px;">
-                    <span style="width: 12px; height: 12px; background: ${coverageColors.missing}; border-radius: 2px; display: inline-block;"></span>
-                    <span style="flex: 1;">Fehlend:</span>
-                    <span style="font-family: monospace; text-align: right; min-width: 35px;">${noCover}%</span>
-                </div>
-            </div>
-        </div>
-    `;
-
-    if (popupHtmlCache.size > 200) {
-        const firstKey = popupHtmlCache.keys().next().value;
-        popupHtmlCache.delete(firstKey);
-    }
     popupHtmlCache.set(cacheKey, html);
 
     return html;
@@ -309,35 +250,19 @@ function hasCoverageBreakdown(props, prefix) {
     return keys.some((key) => Number.isFinite(Number(props?.[key])));
 }
 
-function buildCoverageStatRows(props, compact = false) {
+function buildCoverageStatRows(props) {
     return coverageBreakdownConfig
         .filter(({ key }) => hasCoverageBreakdown(props, key))
         .map(({ key, label }) => {
             const pano = toPercent(props[`${key}_pano`]);
             const regular = toPercent(props[`${key}_regular`]);
             const missing = toPercent(props[`${key}_no_cover`]);
-
-            const cellStyle = compact
-                ? 'padding: 2px 6px; text-align: right; font-family: monospace; font-size: 11px;'
-                : 'padding: 4px 8px; text-align: right; font-family: monospace; font-size: 11px;';
-            const labelCellStyle = compact
-                ? 'padding: 2px 6px; font-size: 11px; font-weight: 600; text-align: left;'
-                : 'padding: 4px 8px; font-size: 11px; font-weight: 600; text-align: left;';
-
-            return `
-                <tr>
-                    <td style="${labelCellStyle}">${escapeHtml(label)}</td>
-                    <td style="${cellStyle}">${pano}%</td>
-                    <td style="${cellStyle}">${regular}%</td>
-                    <td style="${cellStyle}">${missing}%</td>
-                </tr>
-            `;
-        })
-        .join('');
+            return { label, pano, regular, missing };
+        });
 }
 
 function getDetailedPopupHtml(props) {
-    const name = escapeHtml(getFeatureLabel(props));
+    const name = getFeatureLabel(props);
     const noCover = toPercent(props.all_no_cover);
     const pano = toPercent(props.all_pano);
     const regular = toPercent(props.all_regular);
@@ -353,58 +278,18 @@ function getDetailedPopupHtml(props) {
         size: 96
     });
 
-    const pieChartHtml = pieChartUrl
-        ? `<img src="${pieChartUrl}" style="width: 96px; height: 96px; margin: 2px 10px 0 0; flex-shrink: 0;" alt="Coverage Chart" />`
-        : '';
-
     const detailRows = buildCoverageStatRows(props);
 
-    const html = `
-        <div style="font-family: sans-serif; font-size: 12px; min-width: 260px;">
-            <strong style="font-size: 14px;">${name}</strong>
-            <div style="display: flex; align-items: center; margin-top: 8px;">
-                ${pieChartHtml}
-                <div style="flex: 1; min-width: 130px;">
-                    <div style="margin: 2px 0; display: flex; align-items: center; gap: 6px;">
-                        <span style="width: 10px; height: 10px; background: ${coverageColors.pano}; border-radius: 2px; display: inline-block;"></span>
-                        <span style="flex: 1;">Panorama:</span>
-                        <span style="font-family: monospace;">${pano}%</span>
-                    </div>
-                    <div style="margin: 2px 0; display: flex; align-items: center; gap: 6px;">
-                        <span style="width: 10px; height: 10px; background: ${coverageColors.regular}; border-radius: 2px; display: inline-block;"></span>
-                        <span style="flex: 1;">Regular:</span>
-                        <span style="font-family: monospace;">${regular}%</span>
-                    </div>
-                    <div style="margin: 2px 0; display: flex; align-items: center; gap: 6px;">
-                        <span style="width: 10px; height: 10px; background: ${coverageColors.missing}; border-radius: 2px; display: inline-block;"></span>
-                        <span style="flex: 1;">Fehlend:</span>
-                        <span style="font-family: monospace;">${noCover}%</span>
-                    </div>
-                </div>
-            </div>
-            <div style="margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px;">
-                <div style="font-size: 11px; font-weight: 600; margin-bottom: 6px;">Nach Straßentyp</div>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr>
-                            <th style="padding: 4px 8px; text-align: left; font-size: 11px;">Typ</th>
-                            <th style="padding: 4px 8px; text-align: right; font-size: 11px; color: ${coverageColors.pano};">Pano</th>
-                            <th style="padding: 4px 8px; text-align: right; font-size: 11px; color: ${coverageColors.regular};">Regular</th>
-                            <th style="padding: 4px 8px; text-align: right; font-size: 11px; color: ${coverageColors.missing};">Fehlend</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${detailRows}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
+    const html = createCoverageDetailPopupHtml({
+        name,
+        pieChartUrl,
+        pano,
+        regular,
+        missing: noCover,
+        breakdownRows: detailRows,
+        colors: coverageColors
+    });
 
-    if (detailPopupHtmlCache.size > 200) {
-        const firstKey = detailPopupHtmlCache.keys().next().value;
-        detailPopupHtmlCache.delete(firstKey);
-    }
     detailPopupHtmlCache.set(cacheKey, html);
 
     return html;
@@ -471,7 +356,6 @@ function handleCoverageClick(event) {
         const html = getDetailedPopupHtml(properties);
         detailPopup.setLngLat(event.lngLat).setHTML(html).addTo(map);
 
-        console.log('Feature properties:', properties);
     }
 }
 
@@ -494,40 +378,58 @@ function createMissingStreetsLayerSpec(categoryDef, sourceDef) {
 }
 
 function areMissingStreetSourcesReady() {
-    return MISSING_STREETS_SOURCE_DEFS.every((sourceDef) => hasSource(sourceDef.sourceId));
+    return MISSING_STREETS_SOURCE_DEFS.every((sourceDef) => hasSource(map, sourceDef.sourceId));
 }
 
-function scheduleMissingStreetsRetry() {
-    if (missingStreetsRetryTimeoutId) return;
+function clearMissingStreetsReadinessWatch() {
+    if (!disposeMissingStreetsReadinessWatch) return;
+    disposeMissingStreetsReadinessWatch();
+    disposeMissingStreetsReadinessWatch = null;
+}
 
-    missingStreetsRetryTimeoutId = setTimeout(() => {
-        missingStreetsRetryTimeoutId = null;
+function watchMissingStreetSourcesUntilAvailable() {
+    if (!map || disposeMissingStreetsReadinessWatch) return;
+
+    const sourceIds = MISSING_STREETS_SOURCE_DEFS.map((sourceDef) => sourceDef.sourceId);
+
+    disposeMissingStreetsReadinessWatch = whenSourcesAvailable(map, sourceIds, () => {
+        disposeMissingStreetsReadinessWatch = null;
         addMissingStreetsLayers();
-    }, 750);
+        restoreLayerVisibilityFromUi();
+        updateStreetsZoomWarning();
+    });
 }
 
 function addMissingStreetsLayers() {
     if (!map) return;
 
     if (!areMissingStreetSourcesReady()) {
-        scheduleMissingStreetsRetry();
+        watchMissingStreetSourcesUntilAvailable();
         return;
     }
 
+    clearMissingStreetsReadinessWatch();
+
+    let addedLayers = 0;
     for (const sourceDef of MISSING_STREETS_SOURCE_DEFS) {
         for (const categoryDef of MISSING_STREETS_CATEGORY_DEFS) {
-            addLayerIfMissing(createMissingStreetsLayerSpec(categoryDef, sourceDef));
+            const layerSpec = createMissingStreetsLayerSpec(categoryDef, sourceDef);
+            const alreadyExists = hasLayer(map, layerSpec.id);
+            addLayerIfMissing(map, layerSpec);
+            if (!alreadyExists) {
+                addedLayers += 1;
+            }
         }
     }
 
-    console.log('Missing Streets layers added');
+    if (addedLayers === 0) return;
 }
 
 function addMissingStreetsSources() {
     if (!map) return;
 
     for (const sourceDef of MISSING_STREETS_SOURCE_DEFS) {
-        addSourceIfMissing(sourceDef.sourceId, {
+        addSourceIfMissing(map, sourceDef.sourceId, {
             type: 'vector',
             tiles: sourceDef.tileConfig.tiles,
             minzoom: sourceDef.tileConfig.minzoom,
@@ -537,7 +439,7 @@ function addMissingStreetsSources() {
 }
 
 function setMissingStreetsVisibility(visible) {
-    setLayersVisibility(missingStreetsLayerIds, visible ? 'visible' : 'none');
+    setLayersVisibility(map, missingStreetsLayerIds, visible ? 'visible' : 'none');
 }
 
 const toggleInfoBtn = document.getElementById('toggle-info');
@@ -574,6 +476,20 @@ function restoreLayerVisibilityFromUi() {
     }
 }
 
+function rebuildRuntimeLayers() {
+    if (!map) return;
+
+    try {
+        addMissingStreetsSources();
+        updateCoverageLayer();
+        addMissingStreetsLayers();
+        restoreLayerVisibilityFromUi();
+        updateStreetsZoomWarning();
+    } catch (error) {
+        console.error('Error rebuilding layers:', error);
+    }
+}
+
 if (toggleInfoBtn && infoPanel) {
     toggleInfoBtn.addEventListener('click', () => {
         infoPanel.style.display = infoPanel.style.display === 'none' ? 'flex' : 'none';
@@ -599,29 +515,7 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
         zoom: initialMapConfig.zoom
     });
 
-    map.on('error', (event) => {
-        const sourceId = event?.sourceId || event?.source?.id || event?.tile?.tileID?.canonical?.source;
-        const tileInfo = event?.tile?.tileID?.canonical
-            ? {
-                z: event.tile.tileID.canonical.z,
-                x: event.tile.tileID.canonical.x,
-                y: event.tile.tileID.canonical.y
-            }
-            : null;
-
-        const details = {
-            message: event?.error?.message || 'Unknown map error',
-            sourceId: sourceId || null,
-            tile: tileInfo,
-            status: event?.sourceDataType || null
-        };
-
-        console.error('MapLibre source error:', details);
-
-        if (details.message === 'Decoding failed.' && details.sourceId && details.sourceId !== COVERAGE_SOURCE_ID) {
-            console.warn(`Decode error is from source "${details.sourceId}" (not PMTiles coverage-data).`);
-        }
-    });
+    attachMapErrorTelemetry(map, { coverageSourceId: COVERAGE_SOURCE_ID });
 
     if (darkModeToggle) {
         darkModeToggle.addEventListener('click', () => {
@@ -636,15 +530,8 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
 
             map.once('style.load', () => {
                 currentActiveLayer = null;
-
-                addMissingStreetsSources();
-
-                setTimeout(() => {
-                    updateCoverageLayer();
-                    addMissingStreetsLayers();
-                    restoreLayerVisibilityFromUi();
-                    updateStreetsZoomWarning();
-                }, 500);
+                clearMissingStreetsReadinessWatch();
+                rebuildRuntimeLayers();
             });
         });
     }
@@ -659,7 +546,6 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
             }
 
             updateStreetsZoomWarning();
-            console.log('Streets layer:', isChecked ? 'shown' : 'hidden');
         });
     }
 
@@ -671,31 +557,14 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
             if (kreiseLegend) {
                 kreiseLegend.style.display = coverageLayerVisible ? 'flex' : 'none';
             }
-
-            console.log('Coverage layer:', coverageLayerVisible ? 'shown' : 'hidden');
         });
     }
 
     map.on('load', () => {
-        console.log('Map loaded');
-
-        addMissingStreetsSources();
-
-        setTimeout(() => {
-            console.log('Adding initial layers...');
-
-            try {
-                updateCoverageLayer();
-                addMissingStreetsLayers();
-                restoreLayerVisibilityFromUi();
-                updateStreetsZoomWarning();
-            } catch (error) {
-                console.error('Error adding layers:', error);
-            }
-        }, 500);
+        rebuildRuntimeLayers();
     });
 
-    map.on('zoom', () => {
+    map.on('zoomend', () => {
         updateCoverageLayer();
         updateStreetsZoomWarning();
     });

@@ -1,12 +1,12 @@
 const pixelRatio = 4;
 
 /**
- * Generates a pie chart icon as ImageData for MapLibre.
+ * Generates a pie chart icon as a canvas for MapLibre.
  * @param {Object} params
  * @param {number} params.k1 - Value for first slice (red/pano)
  * @param {number} params.k2 - Value for second slice (blue/regular)
  * @param {number} params.k3 - Value for third slice (green/no_cover)
- * @returns {Object|null} Image object with width, height, size, and data (ImageData) or null if total = 0
+ * @returns {Object|null} Image object with size and canvas (HTMLCanvasElement) or null if total = 0
  */
 export function generatePieIcon({ k1, k2, k3 }) {
   const total = k1 + k2 + k3;
@@ -51,10 +51,8 @@ export function generatePieIcon({ k1, k2, k3 }) {
   ctx.stroke();
 
   return {
-    width: size,
-    height: size,
     size,
-    data: ctx.getImageData(0, 0, size * pixelRatio, size * pixelRatio),
+    canvas,
   };
 }
 
@@ -132,7 +130,7 @@ export function setupPieChartImageGeneration(map) {
 
     const image = generatePieIcon({ k1, k2, k3 });
     if (image) {
-      map.addImage(id, image.data, { pixelRatio: 2 });
+      map.addImage(id, image.canvas, { pixelRatio });
     }
   });
 }

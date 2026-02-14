@@ -17,15 +17,6 @@ const localPmtilesBaseURL = `${protocol}//${host}/preprocessing/data/`;
 
 const pmtilesBaseURL = isLocalDev ? localPmtilesBaseURL : githubRawPmtilesBaseURL;
 
-if (hasWindow) {
-    console.log('Environment:', isLocalDev ? 'Local' : (isGitHubDomain ? 'GitHub' : 'Online'));
-    console.log('PMTiles Base URL:', pmtilesBaseURL);
-
-    if (hostname === 'github.com') {
-        console.warn('Detected github.com page view. For runtime testing use GitHub Pages URL, not the repository blob view.');
-    }
-}
-
 // Layer configuration for hierarchical display
 // Layers are defined from most detailed to least detailed
 // The layer with the highest minZoom that is <= current zoom will be shown
