@@ -47,7 +47,7 @@ body {
     display: flex;
     flex-direction: column;
     z-index: 10;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .info-header {
@@ -83,8 +83,9 @@ body {
     opacity: 0;
     position: absolute;
     top: 100%;
-    left: 50%;
-    transform: translateX(-50%) translateY(8px);
+    right: 0;
+    left: auto;
+    transform: translateY(8px);
     background: var(--primary-bg);
     color: var(--primary-text);
     padding: 12px;
@@ -93,7 +94,7 @@ body {
     border: 1px solid var(--border-color);
     font-size: 12px;
     font-weight: 400;
-    max-width: 220px;
+    max-width: min(280px, calc(100vw - 32px));
     width: max-content;
     z-index: 100;
     pointer-events: none;
@@ -104,13 +105,6 @@ body {
 .info-icon:hover .info-tooltip {
     visibility: visible;
     opacity: 1;
-}
-
-/* Special positioning for top info tooltip */
-.info-icon.top-tooltip .info-tooltip {
-    top: 50%;
-    left: 100%;
-    transform: translateX(8px) translateY(-50%);
 }
 
 .btn-close {
