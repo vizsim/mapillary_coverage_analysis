@@ -114,6 +114,12 @@ const coverageBreakdownConfig = [
     { key: 'tertiary', label: 'Tertiary' }
 ];
 
+const POPUP_VALUE_MODE_SHARE = 'share';
+const POPUP_VALUE_MODE_LENGTH = 'length';
+let popupValueMode = POPUP_VALUE_MODE_SHARE;
+let currentHoverProps = null;
+let currentDetailProps = null;
+
 function getActiveLayerConfig(zoom) {
     let activeLayer = null;
     let highestMinZoom = -1;
@@ -212,6 +218,61 @@ function toPercent(value) {
     return (numericValue * 100).toFixed(1);
 }
 
+function toKilometers(value) {
+    const numericValue = Number(value);
+    if (!Number.isFinite(numericValue)) return '0.0';
+    return numericValue.toFixed(1);
+}
+
+function firstFiniteNumber(...values) {
+    for (const value of values) {
+        const numericValue = Number(value);
+        if (Number.isFinite(numericValue)) return numericValue;
+    }
+    return null;
+}
+
+function getCoverageValuesForPrefix(props, prefix) {
+    return {
+        share: {
+            pano: firstFiniteNumber(props?.[`${prefix}_share_pano`], props?.[`${prefix}_pano`]),
+            regular: firstFiniteNumber(props?.[`${prefix}_share_regular`], props?.[`${prefix}_regular`]),
+            missing: firstFiniteNumber(props?.[`${prefix}_share_no_cover`], props?.[`${prefix}_no_cover`])
+        },
+        length: {
+            pano: firstFiniteNumber(props?.[`${prefix}_length_pano`]),
+            regular: firstFiniteNumber(props?.[`${prefix}_length_regular`]),
+            missing: firstFiniteNumber(props?.[`${prefix}_length_no_cover`])
+        }
+    };
+}
+
+function hasLengthValues(lengthValues) {
+    return [lengthValues?.pano, lengthValues?.regular, lengthValues?.missing].some((value) => Number.isFinite(value));
+}
+
+function formatCoverageValue(value, unit) {
+    if (unit === 'km') {
+        return toKilometers(value);
+    }
+    return toPercent(value);
+}
+
+function getDisplayValuesForPrefix(props, prefix) {
+    const coverageValues = getCoverageValuesForPrefix(props, prefix);
+    const kmAvailable = hasLengthValues(coverageValues.length);
+    const shouldUseKm = popupValueMode === POPUP_VALUE_MODE_LENGTH && kmAvailable;
+    const valueUnit = shouldUseKm ? 'km' : '%';
+    const selected = shouldUseKm ? coverageValues.length : coverageValues.share;
+
+    return {
+        valueUnit,
+        kmAvailable,
+        selected,
+        share: coverageValues.share
+    };
+}
+
 function getFeatureLabel(props) {
     const labelProperty = currentActiveLayer?.labelProperty || 'Name';
     return props[labelProperty] || props.NAME_2 || props.NAME_1 || 'Unbekannt';
@@ -219,18 +280,23 @@ function getFeatureLabel(props) {
 
 function getPopupHtml(props) {
     const name = getFeatureLabel(props);
-    const noCover = toPercent(props.all_no_cover);
-    const pano = toPercent(props.all_pano);
-    const regular = toPercent(props.all_regular);
+    const values = getDisplayValuesForPrefix(props, 'all');
+    const pano = formatCoverageValue(values.selected.pano, values.valueUnit);
+    const regular = formatCoverageValue(values.selected.regular, values.valueUnit);
+    const noCover = formatCoverageValue(values.selected.missing, values.valueUnit);
 
-    const cacheKey = `${name}|${pano}|${regular}|${noCover}`;
+    const sharePano = toPercent(values.share.pano);
+    const shareRegular = toPercent(values.share.regular);
+    const shareNoCover = toPercent(values.share.missing);
+
+    const cacheKey = `${name}|${popupValueMode}|${pano}|${regular}|${noCover}|${values.kmAvailable}`;
     const cached = popupHtmlCache.get(cacheKey);
     if (cached) return cached;
 
     const pieChartUrl = generatePieChartDataUrl({
-        k1: parseFloat(pano),
-        k2: parseFloat(regular),
-        k3: parseFloat(noCover),
+        k1: parseFloat(sharePano),
+        k2: parseFloat(shareRegular),
+        k3: parseFloat(shareNoCover),
         size: 100
     });
 
@@ -240,6 +306,9 @@ function getPopupHtml(props) {
         pano,
         regular,
         missing: noCover,
+        valueMode: popupValueMode,
+        valueUnit: values.valueUnit,
+        kmAvailable: values.kmAvailable,
         colors: coverageColors
     });
 
@@ -249,7 +318,11 @@ function getPopupHtml(props) {
 }
 
 function hasCoverageBreakdown(props, prefix) {
-    const keys = [`${prefix}_pano`, `${prefix}_regular`, `${prefix}_no_cover`];
+    const keys = [
+        `${prefix}_pano`, `${prefix}_regular`, `${prefix}_no_cover`,
+        `${prefix}_share_pano`, `${prefix}_share_regular`, `${prefix}_share_no_cover`,
+        `${prefix}_length_pano`, `${prefix}_length_regular`, `${prefix}_length_no_cover`
+    ];
     return keys.some((key) => Number.isFinite(Number(props?.[key])));
 }
 
@@ -257,27 +330,33 @@ function buildCoverageStatRows(props) {
     return coverageBreakdownConfig
         .filter(({ key }) => hasCoverageBreakdown(props, key))
         .map(({ key, label }) => {
-            const pano = toPercent(props[`${key}_pano`]);
-            const regular = toPercent(props[`${key}_regular`]);
-            const missing = toPercent(props[`${key}_no_cover`]);
+            const values = getDisplayValuesForPrefix(props, key);
+            const pano = formatCoverageValue(values.selected.pano, values.valueUnit);
+            const regular = formatCoverageValue(values.selected.regular, values.valueUnit);
+            const missing = formatCoverageValue(values.selected.missing, values.valueUnit);
             return { label, pano, regular, missing };
         });
 }
 
 function getDetailedPopupHtml(props) {
     const name = getFeatureLabel(props);
-    const noCover = toPercent(props.all_no_cover);
-    const pano = toPercent(props.all_pano);
-    const regular = toPercent(props.all_regular);
+    const values = getDisplayValuesForPrefix(props, 'all');
+    const pano = formatCoverageValue(values.selected.pano, values.valueUnit);
+    const regular = formatCoverageValue(values.selected.regular, values.valueUnit);
+    const noCover = formatCoverageValue(values.selected.missing, values.valueUnit);
 
-    const cacheKey = `${name}|${pano}|${regular}|${noCover}|detail`;
+    const sharePano = toPercent(values.share.pano);
+    const shareRegular = toPercent(values.share.regular);
+    const shareNoCover = toPercent(values.share.missing);
+
+    const cacheKey = `${name}|${popupValueMode}|${pano}|${regular}|${noCover}|${values.kmAvailable}|detail`;
     const cached = detailPopupHtmlCache.get(cacheKey);
     if (cached) return cached;
 
     const pieChartUrl = generatePieChartDataUrl({
-        k1: parseFloat(pano),
-        k2: parseFloat(regular),
-        k3: parseFloat(noCover),
+        k1: parseFloat(sharePano),
+        k2: parseFloat(shareRegular),
+        k3: parseFloat(shareNoCover),
         size: 96
     });
 
@@ -290,12 +369,45 @@ function getDetailedPopupHtml(props) {
         regular,
         missing: noCover,
         breakdownRows: detailRows,
+        valueMode: popupValueMode,
+        valueUnit: values.valueUnit,
+        kmAvailable: values.kmAvailable,
         colors: coverageColors
     });
 
     detailPopupHtmlCache.set(cacheKey, html);
 
     return html;
+}
+
+function bindPopupUnitToggle(popupInstance) {
+    const popupElement = popupInstance?.getElement?.();
+    if (!popupElement) return;
+
+    const toggleInput = popupElement.querySelector('.popup-unit-toggle-input');
+    if (!toggleInput) return;
+
+    toggleInput.onchange = (event) => {
+        const checked = Boolean(event?.target?.checked);
+        popupValueMode = checked ? POPUP_VALUE_MODE_LENGTH : POPUP_VALUE_MODE_SHARE;
+        refreshOpenCoveragePopups();
+    };
+}
+
+function refreshOpenCoveragePopups() {
+    if (popup?.isOpen() && currentHoverProps) {
+        const hoverHtml = getPopupHtml(currentHoverProps);
+        popup.setHTML(hoverHtml);
+        bindPopupUnitToggle(popup);
+    }
+
+    if (detailPopup?.isOpen() && currentDetailProps) {
+        const lngLat = detailPopup.getLngLat();
+        const detailHtml = getDetailedPopupHtml(currentDetailProps);
+        detailPopup.setHTML(detailHtml);
+        detailPopup.setLngLat(lngLat);
+        bindPopupUnitToggle(detailPopup);
+    }
 }
 
 function handleCoverageHover(event) {
@@ -309,6 +421,7 @@ function handleCoverageHover(event) {
     const feature = features[0];
     const props = feature?.properties || {};
     const featureId = feature?.id || props.ID_0;
+    currentHoverProps = props;
 
     pendingPopupLngLat = event.lngLat;
 
@@ -317,6 +430,7 @@ function handleCoverageHover(event) {
 
         const html = getPopupHtml(props);
         popup.setHTML(html);
+        bindPopupUnitToggle(popup);
 
         if (!popup.isOpen()) {
             popup.addTo(map);
@@ -338,6 +452,7 @@ function handleCoverageLeave() {
 
     map.getCanvas().style.cursor = '';
     currentFeatureId = null;
+    currentHoverProps = null;
     popup.remove();
     pendingPopupLngLat = null;
 
@@ -352,12 +467,15 @@ function handleCoverageClick(event) {
     if (features.length > 0) {
         const feature = features[0];
         const properties = feature?.properties || {};
+        currentDetailProps = properties;
 
         popup.remove();
         currentFeatureId = null;
+        currentHoverProps = null;
 
         const html = getDetailedPopupHtml(properties);
         detailPopup.setLngLat(event.lngLat).setHTML(html).addTo(map);
+        bindPopupUnitToggle(detailPopup);
 
     }
 }

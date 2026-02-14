@@ -246,6 +246,71 @@ body {
     font-size: 13px;
 }
 
+.popup-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.popup-unit-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.popup-unit-label {
+    font-size: 10px;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.popup-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 18px;
+}
+
+.popup-unit-toggle-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.popup-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: 0.2s;
+    border-radius: 18px;
+}
+
+.popup-toggle-slider:before {
+    position: absolute;
+    content: "";
+    width: 14px;
+    height: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #fff;
+    transition: 0.2s;
+    border-radius: 50%;
+}
+
+.popup-unit-toggle-input:checked + .popup-toggle-slider {
+    background-color: #174ed9;
+}
+
+.popup-unit-toggle-input:checked + .popup-toggle-slider:before {
+    transform: translateX(18px);
+}
+
 .popup-pie-chart {
     width: 100px;
     height: 100px;

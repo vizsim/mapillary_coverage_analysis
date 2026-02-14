@@ -75,7 +75,7 @@ export const trafficSignsLayerIds = ['traffic-signs-points'];
 export const fillColorGradient = [
     'interpolate',
     ['linear'],
-    ['get', 'all_no_cover'],
+    ['coalesce', ['get', 'all_share_no_cover'], ['get', 'all_no_cover'], 0],
     0, '#174ed9',      // 0% missing = dark blue (very good)
     0.2, '#0098f0',    // 20% missing = light blue (good)
     0.5, '#c026d3',    // 50% missing = purple (medium)

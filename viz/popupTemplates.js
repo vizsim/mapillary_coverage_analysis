@@ -9,14 +9,32 @@ function escapeHtml(input) {
         .replace(/'/g, '&#039;');
 }
 
-function renderCoverageRow(label, color, value, { compact = false } = {}) {
+function renderValueModeToggle(valueMode, kmAvailable) {
+    if (!kmAvailable) return '';
+
+    const checked = valueMode === 'length' ? 'checked' : '';
+
+    return `
+        <div class="popup-unit-toggle" title="Anzeige in Prozent oder Kilometer">
+            <span class="popup-unit-label">%</span>
+            <label class="popup-toggle-switch">
+                <input class="popup-unit-toggle-input" type="checkbox" ${checked}>
+                <span class="popup-toggle-slider"></span>
+            </label>
+            <span class="popup-unit-label">km</span>
+        </div>
+    `;
+}
+
+function renderCoverageRow(label, color, value, { compact = false, unit = '%' } = {}) {
     const swatchClass = compact ? 'popup-legend-swatch popup-legend-swatch-sm' : 'popup-legend-swatch';
+    const renderedValue = unit === 'km' ? `${escapeHtml(value)} km` : `${escapeHtml(value)}%`;
 
     return `
         <div class="popup-legend-row">
             <span class="${swatchClass}" style="--swatch-color: ${color};"></span>
             <span class="popup-legend-label">${escapeHtml(label)}:</span>
-            <span class="popup-legend-value">${escapeHtml(value)}%</span>
+            <span class="popup-legend-value">${renderedValue}</span>
         </div>
     `;
 }
@@ -27,6 +45,7 @@ export function createCoveragePopupHtml({
     pano,
     regular,
     missing,
+    valueUnit = '%',
     colors = coverageColors
 }) {
     const pieChartHtml = pieChartUrl
@@ -35,25 +54,29 @@ export function createCoveragePopupHtml({
 
     return `
         <div class="popup-content popup-content-summary">
-            <strong class="popup-title popup-title-sm">${escapeHtml(name)}</strong>
+            <div class="popup-title-row">
+                <strong class="popup-title popup-title-sm">${escapeHtml(name)}</strong>
+            </div>
             ${pieChartHtml}
             <div class="popup-legend-list">
-                ${renderCoverageRow('Panorama', colors.pano, pano)}
-                ${renderCoverageRow('Regular', colors.regular, regular)}
-                ${renderCoverageRow('Fehlend', colors.missing, missing)}
+                ${renderCoverageRow('Panorama', colors.pano, pano, { unit: valueUnit })}
+                ${renderCoverageRow('Regular', colors.regular, regular, { unit: valueUnit })}
+                ${renderCoverageRow('Fehlend', colors.missing, missing, { unit: valueUnit })}
             </div>
         </div>
     `;
 }
 
-function renderDetailTableRows(breakdownRows = []) {
+function renderDetailTableRows(breakdownRows = [], unit = '%') {
+    const suffix = unit === 'km' ? ' km' : '%';
+
     return breakdownRows
         .map((row) => `
             <tr>
                 <td class="popup-table-label">${escapeHtml(row.label)}</td>
-                <td class="popup-table-value">${escapeHtml(row.pano)}%</td>
-                <td class="popup-table-value">${escapeHtml(row.regular)}%</td>
-                <td class="popup-table-value">${escapeHtml(row.missing)}%</td>
+                <td class="popup-table-value">${escapeHtml(row.pano)}${suffix}</td>
+                <td class="popup-table-value">${escapeHtml(row.regular)}${suffix}</td>
+                <td class="popup-table-value">${escapeHtml(row.missing)}${suffix}</td>
             </tr>
         `)
         .join('');
@@ -66,6 +89,9 @@ export function createCoverageDetailPopupHtml({
     regular,
     missing,
     breakdownRows,
+    valueMode = 'share',
+    valueUnit = '%',
+    kmAvailable = false,
     colors = coverageColors
 }) {
     const pieChartHtml = pieChartUrl
@@ -74,13 +100,16 @@ export function createCoverageDetailPopupHtml({
 
     return `
         <div class="popup-content popup-content-detail">
-            <strong class="popup-title">${escapeHtml(name)}</strong>
+            <div class="popup-title-row">
+                <strong class="popup-title">${escapeHtml(name)}</strong>
+                ${renderValueModeToggle(valueMode, kmAvailable)}
+            </div>
             <div class="popup-detail-header">
                 ${pieChartHtml}
                 <div class="popup-detail-summary">
-                    ${renderCoverageRow('Panorama', colors.pano, pano, { compact: true })}
-                    ${renderCoverageRow('Regular', colors.regular, regular, { compact: true })}
-                    ${renderCoverageRow('Fehlend', colors.missing, missing, { compact: true })}
+                    ${renderCoverageRow('Panorama', colors.pano, pano, { compact: true, unit: valueUnit })}
+                    ${renderCoverageRow('Regular', colors.regular, regular, { compact: true, unit: valueUnit })}
+                    ${renderCoverageRow('Fehlend', colors.missing, missing, { compact: true, unit: valueUnit })}
                 </div>
             </div>
             <div class="popup-table-section">
@@ -95,7 +124,7 @@ export function createCoverageDetailPopupHtml({
                         </tr>
                     </thead>
                     <tbody>
-                        ${renderDetailTableRows(breakdownRows)}
+                        ${renderDetailTableRows(breakdownRows, valueUnit)}
                     </tbody>
                 </table>
             </div>
