@@ -150,7 +150,8 @@ body {
     font-size: 13px;
 }
 #kreise-legend,
-#streets-legend {
+#streets-legend,
+#traffic-signs-legend {
     display: flex;
     flex-direction: column;
     gap: 6px;

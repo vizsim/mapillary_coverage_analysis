@@ -16,13 +16,16 @@ import {
     layerConfig,
     mapStyles,
     tileServers,
+    trafficSignsConfig,
+    trafficSignsStyle,
     initialMapConfig,
     fillColorGradient,
     outlineStyle,
     lineWidthConfig,
     coverageColors,
     coverageLayerIds,
-    missingStreetsLayerIds
+    missingStreetsLayerIds,
+    trafficSignsLayerIds
 } from './config.js';
 
 const COVERAGE_SOURCE_ID = 'coverage-data';
@@ -442,6 +445,80 @@ function setMissingStreetsVisibility(visible) {
     setLayersVisibility(map, missingStreetsLayerIds, visible ? 'visible' : 'none');
 }
 
+function addTrafficSignsSource() {
+    if (!map) return;
+
+    addSourceIfMissing(map, trafficSignsConfig.sourceId, {
+        type: 'vector',
+        url: trafficSignsConfig.pmtiles
+    });
+}
+
+function createTrafficSignsLayerSpec() {
+    const signCodeExpression = [
+        'downcase',
+        [
+            'to-string',
+            [
+                'coalesce',
+                ['get', 'traffic_sign'],
+                ['get', 'VZ-Code'],
+                ['get', 'VZ_Code'],
+                ['get', 'vz_code'],
+                ['get', 'code'],
+                ''
+            ]
+        ]
+    ];
+
+    const isSupplementarySignExpression = ['>=', ['index-of', 'de:10', signCodeExpression], 0];
+
+    return {
+        id: trafficSignsLayerIds[0],
+        type: 'circle',
+        source: trafficSignsConfig.sourceId,
+        'source-layer': trafficSignsConfig.sourceLayer,
+        minzoom: trafficSignsConfig.minzoom,
+        maxzoom: trafficSignsConfig.maxzoom,
+        layout: { visibility: 'none' },
+        paint: {
+            'circle-color': [
+                'case',
+                isSupplementarySignExpression,
+                trafficSignsStyle.supplementarySignColor,
+                trafficSignsStyle.mainSignColor
+            ],
+            'circle-radius': trafficSignsStyle.circleRadius,
+            'circle-stroke-color': [
+                'case',
+                isSupplementarySignExpression,
+                trafficSignsStyle.supplementarySignStrokeColor,
+                trafficSignsStyle.mainSignStrokeColor
+            ],
+            'circle-stroke-width': trafficSignsStyle.circleStrokeWidth,
+            'circle-opacity': trafficSignsStyle.circleOpacity
+        }
+    };
+}
+
+function addTrafficSignsLayer() {
+    if (!map || !hasSource(map, trafficSignsConfig.sourceId)) return;
+
+    const layerSpec = createTrafficSignsLayerSpec();
+    if (hasLayer(map, layerSpec.id)) return;
+
+    if (hasLayer(map, missingStreetsLayerIds[0])) {
+        map.addLayer(layerSpec, missingStreetsLayerIds[0]);
+        return;
+    }
+
+    map.addLayer(layerSpec);
+}
+
+function setTrafficSignsVisibility(visible) {
+    setLayersVisibility(map, trafficSignsLayerIds, visible ? 'visible' : 'none');
+}
+
 const toggleInfoBtn = document.getElementById('toggle-info');
 const closeInfoBtn = document.getElementById('close-info');
 const infoPanel = document.querySelector('.info-panel');
@@ -449,6 +526,9 @@ const darkModeToggle = document.getElementById('dark-mode-toggle');
 const toggleStreetsCheckbox = document.getElementById('toggle-streets-layer');
 const streetsLegend = document.getElementById('streets-legend');
 const streetsZoomWarning = document.getElementById('streets-zoom-warning');
+const toggleTrafficSignsCheckbox = document.getElementById('toggle-traffic-signs-layer');
+const trafficSignsLegend = document.getElementById('traffic-signs-legend');
+const trafficSignsZoomWarning = document.getElementById('traffic-signs-zoom-warning');
 const toggleKreiseCheckbox = document.getElementById('toggle-kreise-layer');
 const kreiseLegend = document.getElementById('kreise-legend');
 
@@ -461,9 +541,21 @@ function updateStreetsZoomWarning() {
     streetsZoomWarning.style.display = isStreetsChecked && currentZoom < 9 ? 'block' : 'none';
 }
 
+function updateTrafficSignsZoomWarning() {
+    if (!map || !trafficSignsZoomWarning) return;
+
+    const currentZoom = map.getZoom();
+    const isTrafficSignsChecked = Boolean(toggleTrafficSignsCheckbox?.checked);
+
+    trafficSignsZoomWarning.style.display = isTrafficSignsChecked && currentZoom < trafficSignsConfig.minzoom ? 'block' : 'none';
+}
+
 function restoreLayerVisibilityFromUi() {
     const streetsVisible = Boolean(toggleStreetsCheckbox?.checked);
     setMissingStreetsVisibility(streetsVisible);
+
+    const trafficSignsVisible = Boolean(toggleTrafficSignsCheckbox?.checked);
+    setTrafficSignsVisibility(trafficSignsVisible);
 
     coverageLayerVisible = Boolean(toggleKreiseCheckbox?.checked ?? true);
     applyCoverageVisibility();
@@ -474,17 +566,23 @@ function restoreLayerVisibilityFromUi() {
     if (kreiseLegend) {
         kreiseLegend.style.display = coverageLayerVisible ? 'flex' : 'none';
     }
+    if (trafficSignsLegend) {
+        trafficSignsLegend.style.display = trafficSignsVisible ? 'flex' : 'none';
+    }
 }
 
 function rebuildRuntimeLayers() {
     if (!map) return;
 
     try {
+        addTrafficSignsSource();
         addMissingStreetsSources();
         updateCoverageLayer();
+        addTrafficSignsLayer();
         addMissingStreetsLayers();
         restoreLayerVisibilityFromUi();
         updateStreetsZoomWarning();
+        updateTrafficSignsZoomWarning();
     } catch (error) {
         console.error('Error rebuilding layers:', error);
     }
@@ -549,6 +647,19 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
         });
     }
 
+    if (toggleTrafficSignsCheckbox) {
+        toggleTrafficSignsCheckbox.addEventListener('change', (event) => {
+            const isChecked = Boolean(event?.target?.checked);
+            setTrafficSignsVisibility(isChecked);
+
+            if (trafficSignsLegend) {
+                trafficSignsLegend.style.display = isChecked ? 'flex' : 'none';
+            }
+
+            updateTrafficSignsZoomWarning();
+        });
+    }
+
     if (toggleKreiseCheckbox) {
         toggleKreiseCheckbox.addEventListener('change', (event) => {
             coverageLayerVisible = Boolean(event?.target?.checked);
@@ -567,5 +678,6 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
     map.on('zoomend', () => {
         updateCoverageLayer();
         updateStreetsZoomWarning();
+        updateTrafficSignsZoomWarning();
     });
 }

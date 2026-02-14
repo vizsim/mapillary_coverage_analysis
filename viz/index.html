@@ -85,7 +85,7 @@
                                     • <strong>Panorama</strong>: 360° Rundumaufnahmen<br>
                                     • <strong>Regulär</strong>: Standard-Fotos<br>
                                     • <strong>Fehlend</strong>: Keine Aufnahmen vorhanden<br><br>
-                                    Daten von <a href="https://osm-verkehrswende.org" target="_blank" style="color: inherit;">osm-verkehrswende.org</a>
+                                    Daten von <a href="https://www.osm-verkehrswende.org/mapillary/map/?map=12%2F52.518%2F13.39&anzeige=current_all" target="_blank" style="color: inherit;">osm-verkehrswende.org/mapillary</a>
                                 </span>
                             </span>
                         </div>
@@ -105,6 +105,51 @@
                         <div class="legend-item">
                             <span class="legend-line" style="background: #e91e63;"></span>
                             <span>...fehlenden Fotos</span>
+                        </div>
+                        <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">
+                            Quelle: <a href="https://www.osm-verkehrswende.org/mapillary/map/?map=12%2F52.518%2F13.39&anzeige=current_all" target="_blank" style="color: inherit;">osm-verkehrswende.org/mapillary</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verkehrszeichen Sektion -->
+                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-traffic-signs-layer">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <h3 style="font-size: 13px; margin: 0; font-weight: 600;">Verkehrszeichen</h3>
+                            <span class="info-icon" title="">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                                <span class="info-tooltip">
+                                    Punktlayer mit erkannten Fahrrad-bezogenen Verkehrszeichen aus PMTiles.<br><br>
+                                    • <strong>Hauptzeichen</strong>: blau<br>
+                                    • <strong>Zusatzzeichen</strong>: weiß (wenn <code>traffic_sign</code> DE:10... enthält)<br><br>
+                                    Datenquelle: <a href="https://github.com/vizsim/mapillary_trafficsigns/tree/feature/docker-notebook/use_cases/cycleway_complete_campaign/ts_output" target="_blank" style="color: inherit;">mapillary_trafficsigns/ts_output</a>
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="traffic-signs-zoom-warning" style="display: none; padding: 8px 12px; background-color: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 4px; color: var(--text-color); font-size: 12px; margin-bottom: 8px;">
+                        ℹ️ Daten sind ab Zoomstufe 9+ sichtbar.
+                    </div>
+                    <div id="traffic-signs-legend">
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #2563eb; border-radius: 50%; width: 12px; height: 12px;"></span>
+                            <span>Hauptzeichen</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #ffffff; border: 1px solid #9ca3af; border-radius: 50%; width: 12px; height: 12px;"></span>
+                            <span>Zusatzzeichen (traffic_sign enthält DE:10...)</span>
+                        </div>
+                        <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">
+                            Quelle: <a href="https://github.com/vizsim/mapillary_trafficsigns/tree/feature/docker-notebook/use_cases/cycleway_complete_campaign/ts_output" target="_blank" style="color: inherit;">mapillary_trafficsigns/ts_output</a>
                         </div>
                     </div>
                 </div>

@@ -69,6 +69,8 @@ export const missingStreetsLayerIds = [
     'missing-streets-pano-bikelanes'
 ];
 
+export const trafficSignsLayerIds = ['traffic-signs-points'];
+
 // Fill color gradient based on missing coverage percentage
 export const fillColorGradient = [
     'interpolate',
@@ -118,6 +120,38 @@ export const tileServers = {
         minzoom: 11,
         maxzoom: 22
     }
+};
+
+export const trafficSignsConfig = {
+    sourceId: 'mapillary-traffic-signs',
+    sourceLayer: 'default',
+    pmtiles: `${PMTILES_PREFIX}https://raw.githubusercontent.com/vizsim/mapillary_trafficsigns/feature/docker-notebook/use_cases/cycleway_complete_campaign/ts_output/mapillary_trafficsigns_bicycle_latest.pmtiles`,
+    minzoom: 9,
+    maxzoom: 22
+};
+
+export const trafficSignsStyle = {
+    mainSignColor: '#2563eb',
+    supplementarySignColor: '#ffffff',
+    mainSignStrokeColor: '#ffffff',
+    supplementarySignStrokeColor: '#9ca3af',
+    circleRadius: [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        9, 2.5,
+        12, 4,
+        15, 5.5
+    ],
+    circleStrokeWidth: [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        11, 0.5,
+        14, 1.2,
+        22, 1.5
+    ],
+    circleOpacity: 0.85
 };
 
 // Line width configuration for street layers
