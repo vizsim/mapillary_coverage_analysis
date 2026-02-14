@@ -25,6 +25,7 @@ import {
     coverageColors,
     coverageLayerIds,
     missingStreetsLayerIds,
+    missingStreetsMainRoadLayerIds,
     trafficSignsLayerIds
 } from './config.js';
 
@@ -77,6 +78,36 @@ const MISSING_STREETS_CATEGORY_DEFS = [
         color: coverageColors.pano,
         filter: ['==', ['get', 'mapillary_coverage'], 'pano']
     }
+];
+
+const MAIN_ROAD_CLASS_VALUES = [
+    'motorway',
+    'trunk',
+    'primary',
+    'secondary',
+    'tertiary',
+    'motorway_link',
+    'trunk_link',
+    'primary_link',
+    'secondary_link',
+    'tertiary_link'
+];
+
+const MAIN_ROAD_CLASS_FILTER = [
+    'in',
+    [
+        'downcase',
+        [
+            'to-string',
+            [
+                'coalesce',
+                ['get', 'road'],
+                ['get', 'highway'],
+                ''
+            ]
+        ]
+    ],
+    ['literal', MAIN_ROAD_CLASS_VALUES]
 ];
 
 let map;
@@ -560,7 +591,41 @@ function addMissingStreetsSources() {
 }
 
 function setMissingStreetsVisibility(visible) {
-    setLayersVisibility(map, missingStreetsLayerIds, visible ? 'visible' : 'none');
+    const showMainRoadsOnly = Boolean(toggleMainRoadsOnlyCheckbox?.checked);
+
+    applyMissingStreetsRoadClassFilter(showMainRoadsOnly);
+
+    if (!visible) {
+        setLayersVisibility(map, missingStreetsLayerIds, 'none');
+        return;
+    }
+
+    if (!showMainRoadsOnly) {
+        setLayersVisibility(map, missingStreetsLayerIds, 'visible');
+        return;
+    }
+
+    setLayersVisibility(map, missingStreetsMainRoadLayerIds, 'visible');
+
+    const nonMainRoadLayerIds = missingStreetsLayerIds.filter(
+        (layerId) => !missingStreetsMainRoadLayerIds.includes(layerId)
+    );
+    setLayersVisibility(map, nonMainRoadLayerIds, 'none');
+}
+
+function applyMissingStreetsRoadClassFilter(showMainRoadsOnly) {
+    if (!map) return;
+
+    for (const categoryDef of MISSING_STREETS_CATEGORY_DEFS) {
+        const roadsLayerId = `missing-streets-${categoryDef.key}-roads`;
+        if (!hasLayer(map, roadsLayerId)) continue;
+
+        const filter = showMainRoadsOnly
+            ? ['all', categoryDef.filter, MAIN_ROAD_CLASS_FILTER]
+            : categoryDef.filter;
+
+        map.setFilter(roadsLayerId, filter);
+    }
 }
 
 function addTrafficSignsSource() {
@@ -642,6 +707,7 @@ const closeInfoBtn = document.getElementById('close-info');
 const infoPanel = document.querySelector('.info-panel');
 const darkModeToggle = document.getElementById('dark-mode-toggle');
 const toggleStreetsCheckbox = document.getElementById('toggle-streets-layer');
+const toggleMainRoadsOnlyCheckbox = document.getElementById('toggle-main-roads-only');
 const streetsLegend = document.getElementById('streets-legend');
 const streetsZoomWarning = document.getElementById('streets-zoom-warning');
 const toggleTrafficSignsCheckbox = document.getElementById('toggle-traffic-signs-layer');
@@ -762,6 +828,12 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
             }
 
             updateStreetsZoomWarning();
+        });
+    }
+
+    if (toggleMainRoadsOnlyCheckbox) {
+        toggleMainRoadsOnlyCheckbox.addEventListener('change', () => {
+            setMissingStreetsVisibility(Boolean(toggleStreetsCheckbox?.checked));
         });
     }
 

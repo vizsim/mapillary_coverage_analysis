@@ -69,6 +69,8 @@ export const missingStreetsLayerIds = [
     'missing-streets-pano-bikelanes'
 ];
 
+export const missingStreetsMainRoadLayerIds = missingStreetsLayerIds.filter((layerId) => layerId.endsWith('-roads'));
+
 export const trafficSignsLayerIds = ['traffic-signs-points'];
 
 // Fill color gradient based on missing coverage percentage
