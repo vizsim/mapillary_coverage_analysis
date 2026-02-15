@@ -22,7 +22,16 @@ function renderValueModeToggle(valueMode, kmAvailable) {
                 <span class="popup-toggle-slider"></span>
             </label>
             <span class="popup-unit-label">km</span>
+            ${renderLengthInfoIcon()}
         </div>
+    `;
+}
+
+function renderLengthInfoIcon() {
+    const infoText = 'Infrastruktur-Längen sind pragmatisch kumuliert, beachten keine Tags wie "oneway" etc.';
+
+    return `
+        <span class="popup-info-icon" title="${escapeHtml(infoText)}" aria-label="Hinweis zu Infrastruktur-Längen">ℹ</span>
     `;
 }
 

@@ -715,6 +715,29 @@ const trafficSignsLegend = document.getElementById('traffic-signs-legend');
 const trafficSignsZoomWarning = document.getElementById('traffic-signs-zoom-warning');
 const toggleKreiseCheckbox = document.getElementById('toggle-kreise-layer');
 const kreiseLegend = document.getElementById('kreise-legend');
+const infoContent = document.querySelector('.info-content');
+
+function setElementVisibility(element, visible, displayMode = 'flex') {
+    if (!element) return;
+    element.style.display = visible ? displayMode : 'none';
+}
+
+function normalizeInfoPanelScroll() {
+    if (!infoContent) return;
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const maxScrollTop = Math.max(0, infoContent.scrollHeight - infoContent.clientHeight);
+            if (maxScrollTop <= 1) {
+                infoContent.scrollTop = 0;
+                return;
+            }
+            if (infoContent.scrollTop > maxScrollTop) {
+                infoContent.scrollTop = maxScrollTop;
+            }
+        });
+    });
+}
 
 function updateStreetsZoomWarning() {
     if (!map || !streetsZoomWarning) return;
@@ -744,15 +767,11 @@ function restoreLayerVisibilityFromUi() {
     coverageLayerVisible = Boolean(toggleKreiseCheckbox?.checked ?? true);
     applyCoverageVisibility();
 
-    if (streetsLegend) {
-        streetsLegend.style.display = streetsVisible ? 'flex' : 'none';
-    }
-    if (kreiseLegend) {
-        kreiseLegend.style.display = coverageLayerVisible ? 'flex' : 'none';
-    }
-    if (trafficSignsLegend) {
-        trafficSignsLegend.style.display = trafficSignsVisible ? 'flex' : 'none';
-    }
+    setElementVisibility(streetsLegend, streetsVisible);
+    setElementVisibility(kreiseLegend, coverageLayerVisible);
+    setElementVisibility(trafficSignsLegend, trafficSignsVisible);
+
+    normalizeInfoPanelScroll();
 }
 
 function rebuildRuntimeLayers() {
@@ -774,13 +793,23 @@ function rebuildRuntimeLayers() {
 
 if (toggleInfoBtn && infoPanel) {
     toggleInfoBtn.addEventListener('click', () => {
-        infoPanel.style.display = infoPanel.style.display === 'none' ? 'flex' : 'none';
+        const shouldOpen = infoPanel.style.display === 'none';
+        infoPanel.style.display = shouldOpen ? 'flex' : 'none';
+
+        if (shouldOpen && infoContent) {
+            infoContent.scrollTop = 0;
+        }
+
+        normalizeInfoPanelScroll();
     });
 }
 
 if (closeInfoBtn && infoPanel) {
     closeInfoBtn.addEventListener('click', () => {
         infoPanel.style.display = 'none';
+        if (infoContent) {
+            infoContent.scrollTop = 0;
+        }
     });
 }
 
@@ -823,17 +852,17 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
             const isChecked = Boolean(event?.target?.checked);
             setMissingStreetsVisibility(isChecked);
 
-            if (streetsLegend) {
-                streetsLegend.style.display = isChecked ? 'flex' : 'none';
-            }
+            setElementVisibility(streetsLegend, isChecked);
 
             updateStreetsZoomWarning();
+            normalizeInfoPanelScroll();
         });
     }
 
     if (toggleMainRoadsOnlyCheckbox) {
         toggleMainRoadsOnlyCheckbox.addEventListener('change', () => {
             setMissingStreetsVisibility(Boolean(toggleStreetsCheckbox?.checked));
+            normalizeInfoPanelScroll();
         });
     }
 
@@ -842,11 +871,10 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
             const isChecked = Boolean(event?.target?.checked);
             setTrafficSignsVisibility(isChecked);
 
-            if (trafficSignsLegend) {
-                trafficSignsLegend.style.display = isChecked ? 'flex' : 'none';
-            }
+            setElementVisibility(trafficSignsLegend, isChecked);
 
             updateTrafficSignsZoomWarning();
+            normalizeInfoPanelScroll();
         });
     }
 
@@ -855,9 +883,9 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
             coverageLayerVisible = Boolean(event?.target?.checked);
             applyCoverageVisibility();
 
-            if (kreiseLegend) {
-                kreiseLegend.style.display = coverageLayerVisible ? 'flex' : 'none';
-            }
+            setElementVisibility(kreiseLegend, coverageLayerVisible);
+
+            normalizeInfoPanelScroll();
         });
     }
 
