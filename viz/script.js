@@ -113,6 +113,7 @@ const MAIN_ROAD_CLASS_FILTER = [
 let map;
 let currentActiveLayer = null;
 let coverageLayerVisible = true;
+let manualCoverageLayerId = null;
 let disposeMissingStreetsReadinessWatch = null;
 
 const popup = new maplibregl.Popup({
@@ -150,8 +151,16 @@ const POPUP_VALUE_MODE_LENGTH = 'length';
 let popupValueMode = POPUP_VALUE_MODE_SHARE;
 let currentHoverProps = null;
 let currentDetailProps = null;
+let coverageFillOpacity = 0.7;
 
 function getActiveLayerConfig(zoom) {
+    if (manualCoverageLayerId) {
+        const manualLayer = layerConfig.find((layer) => layer.id === manualCoverageLayerId);
+        if (manualLayer) {
+            return manualLayer;
+        }
+    }
+
     let activeLayer = null;
     let highestMinZoom = -1;
 
@@ -173,7 +182,7 @@ function createCoverageFillLayer() {
         'source-layer': 'default',
         paint: {
             'fill-color': fillColorGradient,
-            'fill-opacity': 0.7
+            'fill-opacity': coverageFillOpacity
         }
     };
 }
@@ -195,6 +204,57 @@ function createCoverageOutlineLayer() {
 function applyCoverageVisibility() {
     const visibility = coverageLayerVisible ? 'visible' : 'none';
     setLayersVisibility(map, coverageLayerIds, visibility);
+}
+
+function applyCoverageFillOpacity() {
+    if (!map || !hasLayer(map, COVERAGE_FILL_LAYER_ID)) return;
+    map.setPaintProperty(COVERAGE_FILL_LAYER_ID, 'fill-opacity', coverageFillOpacity);
+}
+
+function hexToRgb(hexColor) {
+    const normalized = String(hexColor || '').trim().replace('#', '');
+    if (!/^[0-9a-f]{6}$/i.test(normalized)) return null;
+
+    return {
+        r: parseInt(normalized.slice(0, 2), 16),
+        g: parseInt(normalized.slice(2, 4), 16),
+        b: parseInt(normalized.slice(4, 6), 16)
+    };
+}
+
+function rgbToHex({ r, g, b }) {
+    const toHex = (value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function blendHexColors(baseHex, targetHex, ratio) {
+    const base = hexToRgb(baseHex);
+    const target = hexToRgb(targetHex);
+    if (!base || !target) return baseHex;
+
+    const mixRatio = Math.max(0, Math.min(1, ratio));
+    return rgbToHex({
+        r: base.r + (target.r - base.r) * mixRatio,
+        g: base.g + (target.g - base.g) * mixRatio,
+        b: base.b + (target.b - base.b) * mixRatio
+    });
+}
+
+function getDynamicCoverageOutlineOpacity() {
+    const baseOpacity = Number(outlineStyle.opacity) || 0;
+    const additionalOpacity = (1 - coverageFillOpacity) * 0.35;
+    return Math.max(baseOpacity, Math.min(1, baseOpacity + additionalOpacity));
+}
+
+function getDynamicCoverageOutlineColor() {
+    const darkenRatio = (1 - coverageFillOpacity) * 0.8;
+    return blendHexColors(outlineStyle.color, '#2f3745', darkenRatio);
+}
+
+function applyCoverageOutlineContrast() {
+    if (!map || !hasLayer(map, COVERAGE_OUTLINE_LAYER_ID)) return;
+    map.setPaintProperty(COVERAGE_OUTLINE_LAYER_ID, 'line-color', getDynamicCoverageOutlineColor());
+    map.setPaintProperty(COVERAGE_OUTLINE_LAYER_ID, 'line-opacity', getDynamicCoverageOutlineOpacity());
 }
 
 function updateCoverageLayer() {
@@ -226,6 +286,8 @@ function updateCoverageLayer() {
 
     currentActiveLayer = activeLayer;
     attachCoverageLayerEvents();
+    applyCoverageFillOpacity();
+    applyCoverageOutlineContrast();
     applyCoverageVisibility();
 }
 
@@ -715,7 +777,86 @@ const trafficSignsLegend = document.getElementById('traffic-signs-legend');
 const trafficSignsZoomWarning = document.getElementById('traffic-signs-zoom-warning');
 const toggleKreiseCheckbox = document.getElementById('toggle-kreise-layer');
 const kreiseLegend = document.getElementById('kreise-legend');
+const coverageLayerControl = document.getElementById('coverage-layer-control');
+const coverageLayerStatus = document.getElementById('coverage-layer-status');
+const coverageFillOpacitySlider = document.getElementById('coverage-fill-opacity-slider');
+const coverageFillOpacityValue = document.getElementById('coverage-fill-opacity-value');
 const infoContent = document.querySelector('.info-content');
+
+function getCoverageLayersForControl() {
+    return [...layerConfig].sort((a, b) => a.minZoom - b.minZoom);
+}
+
+function getCurrentCoverageLayerForUi() {
+    if (currentActiveLayer) return currentActiveLayer;
+
+    const zoomForEvaluation = map ? map.getZoom() : initialMapConfig.zoom;
+    return getActiveLayerConfig(zoomForEvaluation);
+}
+
+function updateCoverageLayerControlUi() {
+    if (!coverageLayerControl) return;
+
+    const activeLayer = getCurrentCoverageLayerForUi();
+    const activeLayerId = activeLayer?.id || '';
+    const selectedLayerId = manualCoverageLayerId || 'auto';
+
+    const buttons = coverageLayerControl.querySelectorAll('.coverage-level-btn');
+    buttons.forEach((button) => {
+        const layerId = button.dataset.layerId || '';
+        button.classList.toggle('is-active', layerId === activeLayerId);
+        button.classList.toggle('is-selected', layerId === selectedLayerId);
+    });
+
+    if (!coverageLayerStatus) return;
+
+    if (!activeLayer) {
+        coverageLayerStatus.textContent = 'Aktiv: –';
+        return;
+    }
+
+    const modeLabel = manualCoverageLayerId ? 'manuell' : 'Auto (Zoom)';
+    coverageLayerStatus.textContent = `Aktiv: ${activeLayer.name} · ${modeLabel}`;
+}
+
+function setManualCoverageLayer(layerId) {
+    manualCoverageLayerId = layerId;
+    updateCoverageLayer();
+    updateCoverageLayerControlUi();
+}
+
+function buildCoverageLayerControl() {
+    if (!coverageLayerControl) return;
+
+    const layerOptions = getCoverageLayersForControl();
+    coverageLayerControl.innerHTML = '';
+
+    const autoButton = document.createElement('button');
+    autoButton.type = 'button';
+    autoButton.className = 'coverage-level-btn';
+    autoButton.dataset.layerId = 'auto';
+    autoButton.textContent = 'Auto';
+    autoButton.addEventListener('click', () => setManualCoverageLayer(null));
+    coverageLayerControl.appendChild(autoButton);
+
+    layerOptions.forEach((layer) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'coverage-level-btn';
+        button.dataset.layerId = layer.id;
+        button.textContent = layer.name;
+        button.addEventListener('click', () => setManualCoverageLayer(layer.id));
+        coverageLayerControl.appendChild(button);
+    });
+
+    updateCoverageLayerControlUi();
+}
+
+function updateCoverageFillOpacityUi(value) {
+    if (!coverageFillOpacityValue) return;
+    const percent = Math.round(Number(value) * 100);
+    coverageFillOpacityValue.textContent = `${percent}%`;
+}
 
 function setElementVisibility(element, visible, displayMode = 'flex') {
     if (!element) return;
@@ -771,6 +912,7 @@ function restoreLayerVisibilityFromUi() {
     setElementVisibility(kreiseLegend, coverageLayerVisible);
     setElementVisibility(trafficSignsLegend, trafficSignsVisible);
 
+    updateCoverageLayerControlUi();
     normalizeInfoPanelScroll();
 }
 
@@ -816,6 +958,8 @@ if (closeInfoBtn && infoPanel) {
 if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
     console.error('Map dependencies are missing: maplibregl and/or pmtiles are not available.');
 } else {
+    buildCoverageLayerControl();
+
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol('pmtiles', protocol.tile);
 
@@ -843,6 +987,7 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
                 currentActiveLayer = null;
                 clearMissingStreetsReadinessWatch();
                 rebuildRuntimeLayers();
+                updateCoverageLayerControlUi();
             });
         });
     }
@@ -889,13 +1034,33 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
         });
     }
 
+    if (coverageFillOpacitySlider) {
+        const initialOpacity = Number(coverageFillOpacitySlider.value) / 100;
+        if (Number.isFinite(initialOpacity)) {
+            coverageFillOpacity = Math.max(0, Math.min(1, initialOpacity));
+        }
+        updateCoverageFillOpacityUi(coverageFillOpacity);
+
+        coverageFillOpacitySlider.addEventListener('input', (event) => {
+            const nextOpacity = Number(event?.target?.value) / 100;
+            if (!Number.isFinite(nextOpacity)) return;
+
+            coverageFillOpacity = Math.max(0, Math.min(1, nextOpacity));
+            updateCoverageFillOpacityUi(coverageFillOpacity);
+            applyCoverageFillOpacity();
+            applyCoverageOutlineContrast();
+        });
+    }
+
     map.on('load', () => {
         rebuildRuntimeLayers();
+        updateCoverageLayerControlUi();
     });
 
     map.on('zoomend', () => {
         updateCoverageLayer();
         updateStreetsZoomWarning();
         updateTrafficSignsZoomWarning();
+        updateCoverageLayerControlUi();
     });
 }

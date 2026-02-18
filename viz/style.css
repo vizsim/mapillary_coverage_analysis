@@ -39,7 +39,7 @@ body {
     position: absolute;
     top: 12px;
     right: 12px;
-    width: 280px;
+    width: 310px;
     background: var(--primary-bg);
     border-radius: 8px;
     box-shadow: var(--shadow);
@@ -185,6 +185,121 @@ body {
     flex-direction: column;
     gap: 6px;
 }
+
+.coverage-opacity-control {
+    margin-top: 4px;
+    font-size: 12px;
+}
+
+.coverage-level-control {
+    margin-top: 4px;
+    font-size: 12px;
+}
+
+.coverage-level-label {
+    margin-bottom: 4px;
+}
+
+.coverage-level-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.coverage-level-btn {
+    border: 1px solid var(--border-color);
+    background: var(--secondary-bg);
+    color: var(--primary-text);
+    border-radius: 999px;
+    padding: 3px 8px;
+    font-size: 11px;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s, opacity 0.2s;
+    opacity: 0.85;
+}
+
+.coverage-level-btn:hover {
+    opacity: 1;
+}
+
+.coverage-level-btn.is-active {
+    border-color: #64748b;
+    background: rgba(100, 116, 139, 0.18);
+    opacity: 1;
+}
+
+.coverage-level-btn.is-selected {
+    border-color: #174ed9;
+    background: rgba(23, 78, 217, 0.18);
+    opacity: 1;
+}
+
+.coverage-level-status {
+    margin-top: 4px;
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.coverage-opacity-label {
+    display: block;
+    margin-bottom: 4px;
+}
+
+.coverage-opacity-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#coverage-fill-opacity-slider {
+    flex: 0 0 110px;
+    width: 110px;
+    height: 4px;
+    opacity: 0.9;
+    border-radius: 999px;
+    background: var(--border-color);
+    accent-color: var(--primary-text);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+#coverage-fill-opacity-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border-color);
+}
+
+#coverage-fill-opacity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--primary-text);
+    margin-top: -3.5px;
+}
+
+#coverage-fill-opacity-slider::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border-color);
+}
+
+#coverage-fill-opacity-slider::-moz-range-thumb {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: none;
+    background: var(--primary-text);
+}
+
+.coverage-opacity-value {
+    min-width: 34px;
+    text-align: right;
+    opacity: 0.85;
+}
+
 .legend-color {
     width: 20px;
     height: 20px;
