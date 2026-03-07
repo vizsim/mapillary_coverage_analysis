@@ -3,7 +3,7 @@
  */
 import { trafficSignsConfig, trafficSignsStyle, trafficSignsLayerIds, trafficSignsCircleLayerId, VZ_CODE_TO_ICON_ID, TRAFFIC_SIGNS_ICON_MIN_ZOOM } from '../config.js';
 import { hasLayer, hasSource, addSourceIfMissing, setLayersVisibility } from './mapSafeOps.js';
-import { DEFAULT_ICON_ID } from '../utils/trafficSignIcons.js';
+import { DEFAULT_ICON_ID, TRAFFIC_SIGN_CIRCLE_MAIN_ID, TRAFFIC_SIGN_CIRCLE_SUPPLEMENTARY_ID } from '../utils/trafficSignIcons.js';
 
 /** Build icon-image match expression: [match, signCode, 'de:237', 'iconId', ..., default]. */
 function buildIconImageExpression() {
@@ -62,33 +62,39 @@ const filterMain = ['!', filterComplementary];
 /** Zoom-Grenze: ab hier SVG-Icons, davor Kreise. */
 
 /**
- * Kreis-Layer (blau/weiß) für Zoom 9 bis unter TRAFFIC_SIGNS_ICON_MIN_ZOOM.
+ * Low-zoom traffic signs: symbol layer with circle images (avoids tile-boundary clipping of circle layer).
+ * Zoom 9 until just below TRAFFIC_SIGNS_ICON_MIN_ZOOM.
  */
 function createTrafficSignsCircleLayerSpec() {
+    const iconSize = [
+        'interpolate',
+        ['linear'],
+        ['zoom'],
+        9, 0.55,
+        12, 0.75,
+        15, 0.9
+    ];
     return {
         id: trafficSignsCircleLayerId,
-        type: 'circle',
+        type: 'symbol',
         source: trafficSignsConfig.sourceId,
         'source-layer': trafficSignsConfig.sourceLayer,
         minzoom: trafficSignsConfig.minzoom,
         maxzoom: TRAFFIC_SIGNS_ICON_MIN_ZOOM,
-        layout: { visibility: 'none' },
+        layout: {
+            visibility: 'none',
+            'icon-image': [
+                'case',
+                filterComplementary,
+                TRAFFIC_SIGN_CIRCLE_SUPPLEMENTARY_ID,
+                TRAFFIC_SIGN_CIRCLE_MAIN_ID
+            ],
+            'icon-size': iconSize,
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true
+        },
         paint: {
-            'circle-color': [
-                'case',
-                filterComplementary,
-                trafficSignsStyle.supplementarySignColor,
-                trafficSignsStyle.mainSignColor
-            ],
-            'circle-radius': trafficSignsStyle.circleRadius,
-            'circle-stroke-color': [
-                'case',
-                filterComplementary,
-                trafficSignsStyle.supplementarySignStrokeColor,
-                trafficSignsStyle.mainSignStrokeColor
-            ],
-            'circle-stroke-width': trafficSignsStyle.circleStrokeWidth,
-            'circle-opacity': trafficSignsStyle.circleOpacity
+            'icon-opacity': trafficSignsStyle.circleOpacity
         }
     };
 }

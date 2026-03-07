@@ -56,19 +56,19 @@
                 </div>
                 <div id="kreise-legend">
                 <div class="legend-item">
-                    <span class="legend-color" style="background: #174ed9;"></span>
+                    <span class="legend-color legend-color--dark-blue"></span>
                     <span>≥ 80% abgedeckt</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color" style="background: #0098f0;"></span>
+                    <span class="legend-color legend-color--light-blue"></span>
                     <span>50-80% abgedeckt</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color" style="background: #c026d3;"></span>
+                    <span class="legend-color legend-color--purple"></span>
                     <span>20-50% abgedeckt</span>
                 </div>
                 <div class="legend-item">
-                    <span class="legend-color" style="background: #e91e63;"></span>
+                    <span class="legend-color legend-color--pink"></span>
                     <span>&lt; 20% abgedeckt</span>
                 </div>
                 <div class="coverage-level-control">
@@ -78,7 +78,7 @@
                 </div>
                 <div class="coverage-opacity-control">
                     <label for="coverage-fill-opacity-slider" class="coverage-opacity-label">
-                        Transparenz (Fläche)
+                        Transparenz (Gebietsebene)
                     </label>
                     <div class="coverage-opacity-row">
                         <input
@@ -115,7 +115,7 @@
                                     • <strong>Panorama</strong>: 360° Rundumaufnahmen<br>
                                     • <strong>Regulär</strong>: Standard-Fotos<br>
                                     • <strong>Fehlend</strong>: Keine Aufnahmen vorhanden<br><br>
-                                    Daten von <a href="https://www.osm-verkehrswende.org/mapillary/map/?map=12%2F52.518%2F13.39&anzeige=current_all" target="_blank" style="color: inherit;">osm-verkehrswende.org/mapillary</a>
+                                    Daten von <a href="https://www.osm-verkehrswende.org/mapillary/map/?map=12%2F52.518%2F13.39&anzeige=current_all" target="_blank">osm-verkehrswende.org/mapillary</a>
                                 </span>
                             </span>
                         </div>
@@ -125,15 +125,15 @@
                     </div>
                     <div id="streets-legend">
                         <div class="legend-item">
-                            <span class="legend-line" style="background: #174ed9;"></span>
+                            <span class="legend-line legend-line--dark-blue"></span>
                             <span>...ausreichend Panorama-Fotos</span>
                         </div>
                         <div class="legend-item">
-                            <span class="legend-line" style="background: #0098f0;"></span>
+                            <span class="legend-line legend-line--light-blue"></span>
                             <span>...ausreichend regulären Fotos</span>
                         </div>
                         <div class="legend-item">
-                            <span class="legend-line" style="background: #e91e63;"></span>
+                            <span class="legend-line legend-line--pink"></span>
                             <span>...fehlenden Fotos</span>
                         </div>
                         <div class="legend-item legend-item-compact-toggle">
@@ -168,7 +168,7 @@
                                     Punktlayer mit erkannten Fahrrad-bezogenen Verkehrszeichen aus PMTiles.<br><br>
                                     • <strong>Hauptzeichen</strong>: blau<br>
                                     • <strong>Zusatzzeichen</strong>: weiß (wenn <code>traffic_sign</code> DE:10... enthält)<br><br>
-                                    Datenquelle: <a href="https://github.com/vizsim/mapillary_trafficsigns/tree/feature/docker-notebook/use_cases/cycleway_complete_campaign/ts_output" target="_blank" style="color: inherit;">mapillary_trafficsigns/ts_output</a>
+                                    Datenquelle: <a href="https://github.com/vizsim/mapillary_trafficsigns/tree/feature/docker-notebook/use_cases/cycleway_complete_campaign/ts_output" target="_blank">mapillary_trafficsigns/ts_output</a>
                                 </span>
                             </span>
                         </div>
@@ -179,11 +179,11 @@
                     <div id="traffic-signs-legend">
                         <div id="traffic-signs-legend-circles" class="traffic-signs-legend-block">
                             <div class="legend-item">
-                                <span class="legend-color legend-circle" style="background: var(--traffic-sign-main-color, #154889);"></span>
+                                <span class="legend-color legend-circle legend-circle--main"></span>
                                 <span>Hauptzeichen</span>
                             </div>
                             <div class="legend-item">
-                                <span class="legend-color legend-circle" style="background: var(--traffic-sign-supplementary-color, #ffffff); border: 1px solid #9ca3af;"></span>
+                                <span class="legend-color legend-circle legend-circle--supplementary"></span>
                                 <span>Zusatzzeichen</span>
                             </div>
                         </div>

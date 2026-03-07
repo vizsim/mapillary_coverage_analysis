@@ -1,5 +1,5 @@
 import { generatePieChartDataUrl } from './utils/generatePieIcon.js';
-import { addDefaultTrafficSignIcon, setupTrafficSignImageHandler } from './utils/trafficSignIcons.js';
+import { addDefaultTrafficSignIcon, addTrafficSignCircleImages, setupTrafficSignImageHandler } from './utils/trafficSignIcons.js';
 import { attachMapErrorTelemetry } from './utils/errorTelemetry.js';
 import { createCoveragePopupHtml, createCoverageDetailPopupHtml } from './popup/popupTemplates.js';
 import { LruCache } from './utils/lruCache.js';
@@ -76,6 +76,12 @@ let currentActiveLayer = null;
 let coverageLayerVisible = true;
 let manualCoverageLayerId = null;
 let previousMapZoom = null;
+
+/** True nach dem ersten automatischen Aktivieren des Straßensegmente-Layers bei Zoom ≥ STREETS_AUTO_ENABLE_ZOOM (nur einmal pro Session). */
+let streetsAutoEnabledOnce = false;
+
+/** True nach der ersten automatischen Anpassung der Gebietsflächen-Transparenz bei Zoom ≥ STREETS_AUTO_ENABLE_ZOOM (nur einmal pro Session). */
+let coverageOpacityAutoAdjustedOnce = false;
 
 const popup = new maplibregl.Popup({
     closeButton: false,
@@ -625,6 +631,24 @@ const detailPanelContent = detailPanel?.querySelector('.detail-panel-content');
 const detailPanelLayerHint = document.getElementById('detail-panel-layer-hint');
 const detailPanelCloseBtn = document.getElementById('detail-panel-close');
 
+/** Info-Tooltips mit position:fixed positionieren, damit sie die Panel-Scrollhöhe nicht aufblähen. */
+function setupInfoPanelTooltips() {
+    if (!infoPanel) return;
+    const icons = infoPanel.querySelectorAll('.info-icon');
+    const gap = 8;
+    icons.forEach((icon) => {
+        const tooltip = icon.querySelector('.info-tooltip');
+        if (!tooltip) return;
+        icon.addEventListener('mouseenter', () => {
+            const r = icon.getBoundingClientRect();
+            tooltip.style.right = `${window.innerWidth - r.right}px`;
+            tooltip.style.left = 'auto';
+            tooltip.style.top = `${r.bottom + gap}px`;
+        });
+    });
+}
+setupInfoPanelTooltips();
+
 function getCoverageLayersForControl() {
     return [...layerConfig].sort((a, b) => a.minZoom - b.minZoom);
 }
@@ -880,6 +904,7 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
 
             map.once('style.load', () => {
                 addDefaultTrafficSignIcon(map);
+                addTrafficSignCircleImages(map);
                 currentActiveLayer = null;
                 clearMissingStreetsReadinessWatch();
                 rebuildRuntimeLayers();
@@ -950,13 +975,15 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
 
     map.on('load', () => {
         addDefaultTrafficSignIcon(map);
+        addTrafficSignCircleImages(map);
         setupTrafficSignImageHandler(map);
         buildTrafficSignsLegendIcons();
         const initialZoom = map.getZoom();
         previousMapZoom = initialZoom;
         updateTrafficSignsLegend(initialZoom);
         rebuildRuntimeLayers();
-        if (initialZoom >= STREETS_AUTO_ENABLE_ZOOM) {
+        if (initialZoom >= STREETS_AUTO_ENABLE_ZOOM && !coverageOpacityAutoAdjustedOnce) {
+            coverageOpacityAutoAdjustedOnce = true;
             coverageFillOpacity = COVERAGE_OPACITY_AT_ZOOM_10;
             if (coverageFillOpacitySlider) {
                 coverageFillOpacitySlider.value = Math.round(coverageFillOpacity * 100);
@@ -975,7 +1002,8 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
 
         const zoom = map.getZoom();
 
-        if (zoom >= STREETS_AUTO_ENABLE_ZOOM && toggleStreetsCheckbox && !toggleStreetsCheckbox.checked) {
+        if (zoom >= STREETS_AUTO_ENABLE_ZOOM && toggleStreetsCheckbox && !toggleStreetsCheckbox.checked && !streetsAutoEnabledOnce) {
+            streetsAutoEnabledOnce = true;
             toggleStreetsCheckbox.checked = true;
             setMissingStreetsVisibility(map, true, Boolean(toggleMainRoadsOnlyCheckbox?.checked));
             setElementVisibility(streetsLegend, true);
@@ -983,7 +1011,8 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
             setMissingStreetsVisibility(map, Boolean(toggleStreetsCheckbox?.checked), Boolean(toggleMainRoadsOnlyCheckbox?.checked));
         }
 
-        if (previousMapZoom !== null && previousMapZoom < STREETS_AUTO_ENABLE_ZOOM && zoom >= STREETS_AUTO_ENABLE_ZOOM) {
+        if (previousMapZoom !== null && previousMapZoom < STREETS_AUTO_ENABLE_ZOOM && zoom >= STREETS_AUTO_ENABLE_ZOOM && !coverageOpacityAutoAdjustedOnce) {
+            coverageOpacityAutoAdjustedOnce = true;
             coverageFillOpacity = COVERAGE_OPACITY_AT_ZOOM_10;
             if (coverageFillOpacitySlider) {
                 coverageFillOpacitySlider.value = Math.round(coverageFillOpacity * 100);

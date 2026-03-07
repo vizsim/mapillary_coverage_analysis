@@ -1,9 +1,13 @@
 /**
  * Traffic sign icons for MapLibre: load SVGs via styleimagemissing (OSM-Verkehrswende / OSM-Wiki), fallback default icon.
  */
-import { trafficSignsConfig } from '../config.js';
+import { trafficSignsConfig, trafficSignsStyle } from '../config.js';
 
 const DEFAULT_ICON_ID = trafficSignsConfig.defaultIconId;
+
+/** Image IDs for low-zoom traffic sign circles (symbol layer, avoids tile-boundary clipping). */
+export const TRAFFIC_SIGN_CIRCLE_MAIN_ID = 'traffic-sign-circle-main';
+export const TRAFFIC_SIGN_CIRCLE_SUPPLEMENTARY_ID = 'traffic-sign-circle-supplementary';
 const ICON_URLS = trafficSignsConfig.trafficSignIconUrls || {};
 
 /** Icon ids we have SVG URLs for (Mapillary wording). */
@@ -18,17 +22,25 @@ export function getTrafficSignIconUrl(iconId) {
     return ICON_URLS[iconId];
 }
 
+/** Hex to [r,g,b] (0–255). */
+function hexToRgb(hex) {
+    const n = parseInt(String(hex).replace(/^#/, ''), 16);
+    return [n >> 16, (n >> 8) & 0xff, n & 0xff];
+}
+
 /**
- * Create a simple default sign icon (circle) as ImageData for map.addImage.
+ * Create circle ImageData for map.addImage (fill + stroke).
+ * @param {[number,number,number]} fillRgb - Fill color [r,g,b]
+ * @param {[number,number,number]} strokeRgb - Stroke color [r,g,b]
+ * @param {number} [size=32]
+ * @param {number} [radius=12]
  * @returns {{ width: number, height: number, data: Uint8Array }}
  */
-function createDefaultSignImageData() {
-    const size = 32;
-    const radius = 12;
+function createCircleImageData(fillRgb, strokeRgb, size = 32, radius = 12) {
     const center = size / 2;
     const data = new Uint8Array(size * size * 4);
-    const fill = [37, 99, 235, 220];   // blue
-    const stroke = [255, 255, 255, 255];
+    const fill = [fillRgb[0], fillRgb[1], fillRgb[2], 255];
+    const stroke = [strokeRgb[0], strokeRgb[1], strokeRgb[2], 255];
 
     for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
@@ -52,6 +64,14 @@ function createDefaultSignImageData() {
         }
     }
     return { width: size, height: size, data };
+}
+
+/**
+ * Create a simple default sign icon (circle) as ImageData for map.addImage.
+ * @returns {{ width: number, height: number, data: Uint8Array }}
+ */
+function createDefaultSignImageData() {
+    return createCircleImageData([37, 99, 235], [255, 255, 255]);
 }
 
 /**
@@ -83,6 +103,27 @@ export function addDefaultTrafficSignIcon(map) {
 }
 
 /**
+ * Add circle images for the low-zoom traffic signs symbol layer (avoids circle-layer tile-boundary clipping).
+ * Call once after style load, same as addDefaultTrafficSignIcon.
+ * @param {maplibregl.Map} map
+ */
+export function addTrafficSignCircleImages(map) {
+    if (!map) return;
+    const mainFill = hexToRgb(trafficSignsStyle.mainSignColor);
+    const mainStroke = hexToRgb(trafficSignsStyle.mainSignStrokeColor);
+    const suppFill = hexToRgb(trafficSignsStyle.supplementarySignColor);
+    const suppStroke = hexToRgb(trafficSignsStyle.supplementarySignStrokeColor);
+    try {
+        const main = createCircleImageData(mainFill, mainStroke);
+        map.addImage(TRAFFIC_SIGN_CIRCLE_MAIN_ID, { width: main.width, height: main.height, data: main.data }, { pixelRatio: 2 });
+        const supp = createCircleImageData(suppFill, suppStroke);
+        map.addImage(TRAFFIC_SIGN_CIRCLE_SUPPLEMENTARY_ID, { width: supp.width, height: supp.height, data: supp.data }, { pixelRatio: 2 });
+    } catch (e) {
+        console.warn('Could not add traffic sign circle images:', e);
+    }
+}
+
+/**
  * Setup styleimagemissing handler to load traffic sign SVGs and add them to the map.
  * Call once on map load (before or when adding the traffic signs layer).
  * @param {maplibregl.Map} map
@@ -95,13 +136,11 @@ export function setupTrafficSignImageHandler(map) {
     map.on('styleimagemissing', (e) => {
         const id = e.id;
         if (id === DEFAULT_ICON_ID) return;
+        const url = getTrafficSignIconUrl(id);
+        // Only handle our traffic sign icon IDs; ignore basemap images (e.g. "wood-pattern" for forest fill).
+        if (!url) return;
         if (loaded[id]) return;
 
-        const url = getTrafficSignIconUrl(id);
-        if (!url) {
-            addFallbackIcon(map, id);
-            return;
-        }
         loaded[id] = true;
 
         fetch(url)
