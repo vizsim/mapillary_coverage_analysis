@@ -28,15 +28,13 @@
         </div>
         <div class="info-content">
             <div class="legend">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                <div class="legend-toggle-row">
                     <label class="toggle-switch">
                         <input type="checkbox" id="toggle-kreise-layer" checked>
                         <span class="toggle-slider"></span>
                     </label>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <h3 style="font-size: 13px; margin: 0; font-weight: 600;">
-                            Mapillary Coverage auf Hauptstraßen je Gebietsebene
-                        </h3>
+                    <div class="legend-toggle-row__title">
+                        <h3>Mapillary Coverage auf Hauptstraßen je Gebietsebene</h3>
                         <span class="info-icon" title="">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"></circle>
@@ -98,14 +96,14 @@
                 </div>
                 
                 <!-- Straßensegmente Sektion -->
-                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                <div class="legend-section">
+                    <div class="legend-toggle-row">
                         <label class="toggle-switch">
                             <input type="checkbox" id="toggle-streets-layer">
                             <span class="toggle-slider"></span>
                         </label>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <h3 style="font-size: 13px; margin: 0; font-weight: 600;">Straßensegmente</h3>
+                        <div class="legend-toggle-row__title">
+                            <h3>Straßensegmente</h3>
                             <span class="info-icon" title="">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="10"></circle>
@@ -122,7 +120,7 @@
                             </span>
                         </div>
                     </div>
-                    <div id="streets-zoom-warning" style="display: none; padding: 8px 12px; background-color: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 4px; color: var(--text-color); font-size: 12px; margin-bottom: 8px;">
+                    <div id="streets-zoom-warning" class="legend-zoom-warning">
                         ℹ️ Daten sind ab Zoomstufe 9+ sichtbar.
                     </div>
                     <div id="streets-legend">
@@ -145,21 +143,21 @@
                             </label>
                             <span>Nur Hauptstraßen zeigen</span>
                         </div>
-                        <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">
-                            Quelle: <a href="https://www.osm-verkehrswende.org/mapillary/map/?map=12%2F52.518%2F13.39&anzeige=current_all" target="_blank" style="color: inherit;">osm-verkehrswende.org/mapillary</a>
+                        <div class="legend-source">
+                            Quelle: <a href="https://www.osm-verkehrswende.org/mapillary/map/?map=12%2F52.518%2F13.39&anzeige=current_all" target="_blank" rel="noopener noreferrer">osm-verkehrswende.org/mapillary</a>
                         </div>
                     </div>
                 </div>
 
                 <!-- Verkehrszeichen Sektion -->
-                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color);">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                <div class="legend-section">
+                    <div class="legend-toggle-row">
                         <label class="toggle-switch">
                             <input type="checkbox" id="toggle-traffic-signs-layer">
                             <span class="toggle-slider"></span>
                         </label>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <h3 style="font-size: 13px; margin: 0; font-weight: 600;">Verkehrszeichen</h3>
+                        <div class="legend-toggle-row__title">
+                            <h3>Verkehrszeichen</h3>
                             <span class="info-icon" title="">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="12" cy="12" r="10"></circle>
@@ -175,7 +173,7 @@
                             </span>
                         </div>
                     </div>
-                    <div id="traffic-signs-zoom-warning" style="display: none; padding: 8px 12px; background-color: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 4px; color: var(--text-color); font-size: 12px; margin-bottom: 8px;">
+                    <div id="traffic-signs-zoom-warning" class="legend-zoom-warning">
                         ℹ️ Daten sind ab Zoomstufe 9+ sichtbar.
                     </div>
                     <div id="traffic-signs-legend">
@@ -187,15 +185,15 @@
                             <span class="legend-color" style="background: #ffffff; border: 1px solid #9ca3af; border-radius: 50%; width: 12px; height: 12px;"></span>
                             <span>Zusatzzeichen</span>
                         </div>
-                        <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">
-                            Quelle: <a href="https://github.com/vizsim/mapillary_trafficsigns/tree/feature/docker-notebook/use_cases/cycleway_complete_campaign/ts_output" target="_blank" style="color: inherit;">mapillary_trafficsigns/ts_output</a>
+                        <div class="legend-source">
+                            Quelle: <a href="https://github.com/vizsim/mapillary_trafficsigns/tree/feature/docker-notebook/use_cases/cycleway_complete_campaign/ts_output" target="_blank" rel="noopener noreferrer">mapillary_trafficsigns/ts_output</a>
                         </div>
                     </div>
                 </div>
 
                 <div class="github-links">
                     <img src="https://img.shields.io/badge/Status-Experimental-red" alt="Status: Experimental" class="status-badge">
-                    <div style="flex: 1;"></div>
+                    <div class="github-links__spacer"></div>
                     <a href="https://github.com/vizsim/mapillary_coverage_analysis" target="_blank" rel="noopener noreferrer"
                        title="GitHub Repository"
                        class="github-link">
@@ -210,7 +208,7 @@
                             <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/>
                             <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/>
                         </svg>
-                        <span style="font-size: 13px;">Issues</span>
+                        <span>Issues</span>
                     </a>
                 </div>
             </div>

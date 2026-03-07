@@ -111,6 +111,7 @@ body {
 .info-header h1 {
     font-size: 16px;
     font-weight: 600;
+    margin: 0;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -185,15 +186,72 @@ body {
 .legend {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0;
+}
+
+/* Legend: Sektionen mit Trennlinie (Straßensegmente, Verkehrszeichen) */
+.legend-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Zeile mit Toggle + Titel + Info-Icon (alle 3 Sektionen) */
+.legend-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.legend-toggle-row__title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-toggle-row h3 {
+    font-size: 13px;
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Zoom-Hinweis (gelb) */
+.legend-zoom-warning {
+    display: none;
+    padding: 8px 12px;
+    background-color: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 4px;
+    color: var(--text-color);
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+
+.legend-source {
+    font-size: 11px;
+    opacity: 0.8;
+    margin-top: 4px;
+}
+
+.legend-source a {
+    color: inherit;
+}
+
+.github-links__spacer {
+    flex: 1;
+}
+
+.github-links .github-link span {
+    font-size: 13px;
 }
 
 .github-links {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-top: 16px;
-    padding-top: 12px;
+    margin-top: 12px;
+    padding: 12px 0 0 0;
     border-top: 1px solid var(--border-color);
 }
 
