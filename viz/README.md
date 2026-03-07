@@ -8,16 +8,16 @@ Die Anwendung wird aktuell über `index.html` mit `script.js` gestartet:
 
 `script.js` ist damit derzeit die **maßgebliche Runtime-Implementierung**.
 
-## Status der modularen Dateien
+## Ordnerstruktur
 
-Folgende Dateien enthalten einen alternativen/modularen Implementierungspfad, sind aber momentan **nicht an den Laufzeit-Einstieg verdrahtet**:
+- **config.js** – zentrale Konfiguration (Layer, Styles, Tile-Server, etc.)
+- **script.js** – Einstieg und Orchestrierung
+- **utils/** – `lruCache.js`, `sourceReadiness.js`, `errorTelemetry.js`, `generatePieIcon.js`
+- **map/** – `mapSafeOps.js`, `layerManager.js`, `eventHandlers.js`
+- **ui/** – `uiHandlers.js`
+- **popup/** – `popupGenerator.js`, `popupTemplates.js`
 
-- `layerManager.js`
-- `eventHandlers.js`
-- `uiHandlers.js`
-- `popupGenerator.js`
-
-Diese Dateien gelten bis zur Refactor-Phase als **Legacy/parallel gepflegt**.
+Die modularen Dateien in `map/`, `ui/` und `popup/` sind momentan **nicht an den Laufzeit-Einstieg verdrahtet**; `script.js` enthält die maßgebliche Runtime-Implementierung.
 
 ## Refactor-Richtung
 

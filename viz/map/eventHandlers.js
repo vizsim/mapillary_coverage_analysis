@@ -1,5 +1,5 @@
 // Event handlers for map interactions
-import { generatePopupHTML } from './popupGenerator.js';
+import { generatePopupHTML } from '../popup/popupGenerator.js';
 
 // Create popup for tooltips (singleton)
 const popup = new maplibregl.Popup({

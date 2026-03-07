@@ -1,4 +1,4 @@
-import { coverageColors } from './config.js';
+import { coverageColors } from '../config.js';
 
 function escapeHtml(input) {
     return String(input)

@@ -1,16 +1,11 @@
 // Generate popup HTML for feature tooltips
-import { generatePieChartDataUrl } from './generatePieIcon.js';
+import { generatePieChartDataUrl } from '../utils/generatePieIcon.js';
 import { createCoveragePopupHtml } from './popupTemplates.js';
-import { LruCache } from './utils/lruCache.js';
+import { LruCache } from '../utils/lruCache.js';
+import { toPercent } from '../utils/formatHelpers.js';
 
 // Cache for pie chart data URLs to avoid regenerating the same charts
 const pieChartCache = new LruCache(200);
-
-function toPercent(value) {
-    const numericValue = Number(value);
-    if (!Number.isFinite(numericValue)) return '0.0';
-    return (numericValue * 100).toFixed(1);
-}
 
 /**
  * Get or generate a pie chart data URL with caching

@@ -123,6 +123,27 @@ export const tileServers = {
     }
 };
 
+// Missing Streets: source and category definitions (used by script.js; must be after tileServers)
+export const MISSING_STREETS_SOURCE_DEFS = [
+    { sourceId: 'mapillary-roadspathclasses', tileConfig: tileServers.roadsPathClasses, sourceLayer: 'roadsPathClasses', minzoom: 15, layerSuffix: 'pathclasses' },
+    { sourceId: 'mapillary-roads', tileConfig: tileServers.roads, sourceLayer: 'roads', minzoom: 9, layerSuffix: 'roads' },
+    { sourceId: 'bike-lanes', tileConfig: tileServers.bikeLanes, sourceLayer: 'bikelanes', minzoom: 11, layerSuffix: 'bikelanes' }
+];
+
+export const MISSING_STREETS_CATEGORY_DEFS = [
+    { key: 'missing', color: coverageColors.missing, filter: ['any', ['==', ['get', 'mapillary_coverage'], 'missing'], ['!', ['has', 'mapillary_coverage']], ['==', ['get', 'mapillary_coverage'], '']] },
+    { key: 'regular', color: coverageColors.regular, filter: ['==', ['get', 'mapillary_coverage'], 'regular'] },
+    { key: 'pano', color: coverageColors.pano, filter: ['==', ['get', 'mapillary_coverage'], 'pano'] }
+];
+
+const MAIN_ROAD_CLASS_VALUES = ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'motorway_link', 'trunk_link', 'primary_link', 'secondary_link', 'tertiary_link'];
+
+export const MAIN_ROAD_CLASS_FILTER = [
+    'in',
+    ['downcase', ['to-string', ['coalesce', ['get', 'road'], ['get', 'highway'], '']]],
+    ['literal', MAIN_ROAD_CLASS_VALUES]
+];
+
 export const trafficSignsConfig = {
     sourceId: 'mapillary-traffic-signs',
     sourceLayer: 'default',

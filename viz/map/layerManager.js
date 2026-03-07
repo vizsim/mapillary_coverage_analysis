@@ -6,7 +6,7 @@ import {
     coverageColors, 
     lineWidthConfig,
     tileServers 
-} from './config.js';
+} from '../config.js';
 import { handleCoverageHover, handleCoverageLeave, handleCoverageClick, resetCurrentFeature } from './eventHandlers.js';
 
 // Track currently active layer

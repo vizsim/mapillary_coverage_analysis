@@ -1,7 +1,7 @@
-import { generatePieChartDataUrl } from './generatePieIcon.js';
-import { whenSourcesAvailable } from './sourceReadiness.js';
-import { attachMapErrorTelemetry } from './errorTelemetry.js';
-import { createCoveragePopupHtml, createCoverageDetailPopupHtml } from './popupTemplates.js';
+import { generatePieChartDataUrl } from './utils/generatePieIcon.js';
+import { whenSourcesAvailable } from './utils/sourceReadiness.js';
+import { attachMapErrorTelemetry } from './utils/errorTelemetry.js';
+import { createCoveragePopupHtml, createCoverageDetailPopupHtml } from './popup/popupTemplates.js';
 import { LruCache } from './utils/lruCache.js';
 import {
     hasLayer,
@@ -11,7 +11,8 @@ import {
     addSourceIfMissing,
     addLayerIfMissing,
     setLayersVisibility
-} from './mapSafeOps.js';
+} from './map/mapSafeOps.js';
+import { toPercent, toKilometers, firstFiniteNumber } from './utils/formatHelpers.js';
 import {
     layerConfig,
     mapStyles,
@@ -27,89 +28,15 @@ import {
     coverageLayerIds,
     missingStreetsLayerIds,
     missingStreetsMainRoadLayerIds,
-    trafficSignsLayerIds
+    trafficSignsLayerIds,
+    MISSING_STREETS_SOURCE_DEFS,
+    MISSING_STREETS_CATEGORY_DEFS,
+    MAIN_ROAD_CLASS_FILTER
 } from './config.js';
 
 const COVERAGE_SOURCE_ID = 'coverage-data';
 const COVERAGE_FILL_LAYER_ID = 'coverage-fill';
 const COVERAGE_OUTLINE_LAYER_ID = 'coverage-outline';
-
-const MISSING_STREETS_SOURCE_DEFS = [
-    {
-        sourceId: 'mapillary-roadspathclasses',
-        tileConfig: tileServers.roadsPathClasses,
-        sourceLayer: 'roadsPathClasses',
-        minzoom: 15,
-        layerSuffix: 'pathclasses'
-    },
-    {
-        sourceId: 'mapillary-roads',
-        tileConfig: tileServers.roads,
-        sourceLayer: 'roads',
-        minzoom: 9,
-        layerSuffix: 'roads'
-    },
-    {
-        sourceId: 'bike-lanes',
-        tileConfig: tileServers.bikeLanes,
-        sourceLayer: 'bikelanes',
-        minzoom: 11,
-        layerSuffix: 'bikelanes'
-    }
-];
-
-const MISSING_STREETS_CATEGORY_DEFS = [
-    {
-        key: 'missing',
-        color: coverageColors.missing,
-        filter: [
-            'any',
-            ['==', ['get', 'mapillary_coverage'], 'missing'],
-            ['!', ['has', 'mapillary_coverage']],
-            ['==', ['get', 'mapillary_coverage'], '']
-        ]
-    },
-    {
-        key: 'regular',
-        color: coverageColors.regular,
-        filter: ['==', ['get', 'mapillary_coverage'], 'regular']
-    },
-    {
-        key: 'pano',
-        color: coverageColors.pano,
-        filter: ['==', ['get', 'mapillary_coverage'], 'pano']
-    }
-];
-
-const MAIN_ROAD_CLASS_VALUES = [
-    'motorway',
-    'trunk',
-    'primary',
-    'secondary',
-    'tertiary',
-    'motorway_link',
-    'trunk_link',
-    'primary_link',
-    'secondary_link',
-    'tertiary_link'
-];
-
-const MAIN_ROAD_CLASS_FILTER = [
-    'in',
-    [
-        'downcase',
-        [
-            'to-string',
-            [
-                'coalesce',
-                ['get', 'road'],
-                ['get', 'highway'],
-                ''
-            ]
-        ]
-    ],
-    ['literal', MAIN_ROAD_CLASS_VALUES]
-];
 
 let map;
 let currentActiveLayer = null;
@@ -304,26 +231,6 @@ function attachCoverageLayerEvents() {
     map.on('mousemove', COVERAGE_FILL_LAYER_ID, handleCoverageHover);
     map.on('mouseleave', COVERAGE_FILL_LAYER_ID, handleCoverageLeave);
     map.on('click', COVERAGE_FILL_LAYER_ID, handleCoverageClick);
-}
-
-function toPercent(value) {
-    const numericValue = Number(value);
-    if (!Number.isFinite(numericValue)) return '0.0';
-    return (numericValue * 100).toFixed(1);
-}
-
-function toKilometers(value) {
-    const numericValue = Number(value);
-    if (!Number.isFinite(numericValue)) return '0.0';
-    return numericValue.toFixed(1);
-}
-
-function firstFiniteNumber(...values) {
-    for (const value of values) {
-        const numericValue = Number(value);
-        if (Number.isFinite(numericValue)) return numericValue;
-    }
-    return null;
 }
 
 function getCoverageValuesForPrefix(props, prefix) {
@@ -654,6 +561,7 @@ function addMissingStreetsSources() {
 }
 
 function setMissingStreetsVisibility(visible) {
+    if (!map) return;
     const showMainRoadsOnly = Boolean(toggleMainRoadsOnlyCheckbox?.checked);
 
     applyMissingStreetsRoadClassFilter(showMainRoadsOnly);
@@ -762,6 +670,7 @@ function addTrafficSignsLayer() {
 }
 
 function setTrafficSignsVisibility(visible) {
+    if (!map) return;
     setLayersVisibility(map, trafficSignsLayerIds, visible ? 'visible' : 'none');
 }
 

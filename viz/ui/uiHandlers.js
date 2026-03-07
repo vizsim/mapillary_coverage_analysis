@@ -1,5 +1,5 @@
 // UI event handlers for controls and panels
-import { mapStyles } from './config.js';
+import { mapStyles } from '../config.js';
 import { 
     updateCoverageLayer, 
     addMissingStreetsLayers, 
@@ -7,7 +7,7 @@ import {
     resetCurrentActiveLayer,
     setCoverageLayerVisible,
     getMissingStreetsLayerIds
-} from './layerManager.js';
+} from '../map/layerManager.js';
 
 /**
  * Update the visibility of the streets zoom warning
