@@ -144,6 +144,15 @@ export const MAIN_ROAD_CLASS_FILTER = [
     ['literal', MAIN_ROAD_CLASS_VALUES]
 ];
 
+/** Map coverage breakdown key to highway values for filtering (base + _link). */
+export const HIGHWAY_TYPE_TO_VALUES = {
+    motorway: ['motorway', 'motorway_link'],
+    trunk: ['trunk', 'trunk_link'],
+    primary: ['primary', 'primary_link'],
+    secondary: ['secondary', 'secondary_link'],
+    tertiary: ['tertiary', 'tertiary_link']
+};
+
 export const trafficSignsConfig = {
     sourceId: 'mapillary-traffic-signs',
     sourceLayer: 'default',

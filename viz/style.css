@@ -50,6 +50,56 @@ body {
     overflow: visible;
 }
 
+/* Detail-Panel (oben links, statisch wie Info-Panel) */
+.detail-panel {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 300px;
+    max-width: calc(100vw - 24px);
+    background: var(--primary-bg);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    overflow: hidden;
+}
+
+.detail-panel[hidden] {
+    display: none !important;
+}
+
+.detail-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.detail-panel-layer-hint {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-color);
+    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.detail-panel-content {
+    padding: 12px;
+    overflow-y: auto;
+    max-height: 70vh;
+    font-size: 12px;
+}
+
+.detail-panel-content .popup-detail-drag-handle {
+    cursor: default;
+}
+
 .info-header {
     display: flex;
     justify-content: space-between;
@@ -385,6 +435,21 @@ body {
 
 .popup-content-detail {
     min-width: 260px;
+}
+
+.popup-detail-drag-handle {
+    cursor: move;
+    user-select: none;
+}
+
+.popup-table tbody tr.popup-table-row-by-type {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.popup-table tbody tr.popup-table-row-by-type:hover,
+.popup-table tbody tr.popup-table-row-by-type.highway-type-hover {
+    background-color: var(--secondary-bg);
 }
 
 .popup-title {

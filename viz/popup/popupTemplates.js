@@ -80,14 +80,18 @@ function renderDetailTableRows(breakdownRows = [], unit = '%') {
     const suffix = unit === 'km' ? ' km' : '%';
 
     return breakdownRows
-        .map((row) => `
-            <tr>
+        .map((row) => {
+            const highwayType = row.key != null ? escapeHtml(String(row.key)) : '';
+            const attr = highwayType ? ` data-highway-type="${highwayType}"` : '';
+            return `
+            <tr${attr} class="popup-table-row-by-type">
                 <td class="popup-table-label">${escapeHtml(row.label)}</td>
                 <td class="popup-table-value">${escapeHtml(row.pano)}${suffix}</td>
                 <td class="popup-table-value">${escapeHtml(row.regular)}${suffix}</td>
                 <td class="popup-table-value">${escapeHtml(row.missing)}${suffix}</td>
             </tr>
-        `)
+        `;
+        })
         .join('');
 }
 
@@ -109,7 +113,7 @@ export function createCoverageDetailPopupHtml({
 
     return `
         <div class="popup-content popup-content-detail">
-            <div class="popup-title-row">
+            <div class="popup-title-row popup-detail-drag-handle" title="Ziehen zum Verschieben">
                 <strong class="popup-title">${escapeHtml(name)}</strong>
                 ${renderValueModeToggle(valueMode, kmAvailable)}
             </div>

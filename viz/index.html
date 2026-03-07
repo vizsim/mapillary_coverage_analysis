@@ -10,7 +10,16 @@
 </head>
 <body>
     <div id="map"></div>
-    
+
+    <!-- Detail-Panel (Gebietsdetails, statisch oben links wie Info-Panel) -->
+    <div class="detail-panel" id="detail-panel" aria-label="Gebietsdetails" hidden>
+        <div class="detail-panel-header">
+            <span class="detail-panel-layer-hint" id="detail-panel-layer-hint" aria-hidden="true"></span>
+            <button type="button" class="btn-close" id="detail-panel-close" title="Schließen">×</button>
+        </div>
+        <div class="detail-panel-content"></div>
+    </div>
+
     <!-- Info Panel mit Legende -->
     <div class="info-panel">
         <div class="info-header">
