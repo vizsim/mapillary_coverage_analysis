@@ -669,14 +669,19 @@ function buildCoverageLayerControl() {
     const layerOptions = getCoverageLayersForControl();
     coverageLayerControl.innerHTML = '';
 
+    const rowAuto = document.createElement('div');
+    rowAuto.className = 'coverage-level-buttons-row';
     const autoButton = document.createElement('button');
     autoButton.type = 'button';
     autoButton.className = 'coverage-level-btn';
     autoButton.dataset.layerId = 'auto';
     autoButton.textContent = 'Auto';
     autoButton.addEventListener('click', () => setManualCoverageLayer(null));
-    coverageLayerControl.appendChild(autoButton);
+    rowAuto.appendChild(autoButton);
+    coverageLayerControl.appendChild(rowAuto);
 
+    const rowLayers = document.createElement('div');
+    rowLayers.className = 'coverage-level-buttons-row';
     layerOptions.forEach((layer) => {
         const button = document.createElement('button');
         button.type = 'button';
@@ -684,8 +689,9 @@ function buildCoverageLayerControl() {
         button.dataset.layerId = layer.id;
         button.textContent = layer.name;
         button.addEventListener('click', () => setManualCoverageLayer(layer.id));
-        coverageLayerControl.appendChild(button);
+        rowLayers.appendChild(button);
     });
+    coverageLayerControl.appendChild(rowLayers);
 
     updateCoverageLayerControlUi();
 }

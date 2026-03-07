@@ -310,6 +310,12 @@ body {
 
 .coverage-level-buttons {
     display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.coverage-level-buttons-row {
+    display: flex;
     flex-wrap: wrap;
     gap: 6px;
 }
@@ -672,6 +678,21 @@ body {
     font-size: 11px;
     font-weight: 600;
     margin-bottom: 6px;
+}
+
+.popup-table-caption-with-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.popup-info-icon-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.popup-info-icon-link:hover {
+    color: inherit;
 }
 
 .popup-table {

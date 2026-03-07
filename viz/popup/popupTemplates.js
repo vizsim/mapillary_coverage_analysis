@@ -126,7 +126,10 @@ export function createCoverageDetailPopupHtml({
                 </div>
             </div>
             <div class="popup-table-section">
-                <div class="popup-table-caption">Nach Straßentyp</div>
+                <div class="popup-table-caption popup-table-caption-with-info">
+                    Nach Straßentyp
+                    <a href="https://wiki.openstreetmap.org/wiki/DE:Key:highway#Werte" target="_blank" rel="noopener noreferrer" class="popup-info-icon popup-info-icon-link" title="Erklärung der Straßentypen (OSM-Wiki)" aria-label="Straßentypen im OSM-Wiki nachschlagen">ℹ</a>
+                </div>
                 <table class="popup-table">
                     <thead>
                         <tr>
