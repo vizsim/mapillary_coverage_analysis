@@ -21,11 +21,10 @@ function getCachedPieChart(pano, regular, noCover) {
     const cached = pieChartCache.get(key);
     if (cached) return cached;
     
-    // Generate new pie chart
     const pieChartUrl = generatePieChartDataUrl({
-        k1: parseFloat(pano),
-        k2: parseFloat(regular),
-        k3: parseFloat(noCover),
+        k1: pano,
+        k2: regular,
+        k3: noCover,
         size: 100
     });
     
@@ -45,13 +44,12 @@ export function generatePopupHTML(properties, labelProperty) {
     const noCover = toPercent(properties.all_no_cover);
     const pano = toPercent(properties.all_pano);
     const regular = toPercent(properties.all_regular);
-    
-    // Get pie chart from cache or generate new one
-    const pieChartUrl = getCachedPieChart(
-        parseFloat(pano),
-        parseFloat(regular),
-        parseFloat(noCover)
-    );
+
+    const sharePano = (Number(properties.all_pano) || 0) * 100;
+    const shareRegular = (Number(properties.all_regular) || 0) * 100;
+    const shareNoCover = (Number(properties.all_no_cover) || 0) * 100;
+
+    const pieChartUrl = getCachedPieChart(sharePano, shareRegular, shareNoCover);
     
     return createCoveragePopupHtml({
         name,

@@ -47,6 +47,7 @@ import {
     clearSelectedFeatureOutline
 } from './map/coverageSelection.js';
 import { toPercent, toKilometers, firstFiniteNumber } from './utils/formatHelpers.js';
+import { parseMapFromSearchParams, buildMapParam, updateUrlMapParam } from './utils/permalink.js';
 import {
     layerConfig,
     mapStyles,
@@ -229,9 +230,9 @@ function hasLengthValues(lengthValues) {
     return [lengthValues?.pano, lengthValues?.regular, lengthValues?.missing].some((value) => Number.isFinite(value));
 }
 
-function formatCoverageValue(value, unit) {
+function formatCoverageValue(value, unit, wholeNumbersForKm = false) {
     if (unit === 'km') {
-        return toKilometers(value);
+        return toKilometers(value, wholeNumbersForKm);
     }
     return toPercent(value);
 }
@@ -266,9 +267,10 @@ function getFeatureLabel(props) {
 function getPopupHtml(props) {
     const name = getFeatureLabel(props);
     const values = getDisplayValuesForPrefix(props, 'all');
-    const pano = formatCoverageValue(values.selected.pano, values.valueUnit);
-    const regular = formatCoverageValue(values.selected.regular, values.valueUnit);
-    const noCover = formatCoverageValue(values.selected.missing, values.valueUnit);
+    const wholeNumbersForKm = currentActiveLayer?.id === 'bundesland';
+    const pano = formatCoverageValue(values.selected.pano, values.valueUnit, wholeNumbersForKm);
+    const regular = formatCoverageValue(values.selected.regular, values.valueUnit, wholeNumbersForKm);
+    const noCover = formatCoverageValue(values.selected.missing, values.valueUnit, wholeNumbersForKm);
 
     const sharePano = toPercent(values.share.pano);
     const shareRegular = toPercent(values.share.regular);
@@ -279,9 +281,9 @@ function getPopupHtml(props) {
     if (cached) return cached;
 
     const pieChartUrl = generatePieChartDataUrl({
-        k1: parseFloat(sharePano),
-        k2: parseFloat(shareRegular),
-        k3: parseFloat(shareNoCover),
+        k1: (values.share.pano ?? 0) * 100,
+        k2: (values.share.regular ?? 0) * 100,
+        k3: (values.share.missing ?? 0) * 100,
         size: 100
     });
 
@@ -312,13 +314,14 @@ function hasCoverageBreakdown(props, prefix) {
 }
 
 function buildCoverageStatRows(props) {
+    const wholeNumbersForKm = currentActiveLayer?.id === 'bundesland';
     return coverageBreakdownConfig
         .filter(({ key }) => hasCoverageBreakdown(props, key))
         .map(({ key, label }) => {
             const values = getDisplayValuesForPrefix(props, key);
-            const pano = formatCoverageValue(values.selected.pano, values.valueUnit);
-            const regular = formatCoverageValue(values.selected.regular, values.valueUnit);
-            const missing = formatCoverageValue(values.selected.missing, values.valueUnit);
+            const pano = formatCoverageValue(values.selected.pano, values.valueUnit, wholeNumbersForKm);
+            const regular = formatCoverageValue(values.selected.regular, values.valueUnit, wholeNumbersForKm);
+            const missing = formatCoverageValue(values.selected.missing, values.valueUnit, wholeNumbersForKm);
             return { key, label, pano, regular, missing };
         });
 }
@@ -326,9 +329,10 @@ function buildCoverageStatRows(props) {
 function getDetailedPopupHtml(props) {
     const name = getFeatureLabel(props);
     const values = getDisplayValuesForPrefix(props, 'all');
-    const pano = formatCoverageValue(values.selected.pano, values.valueUnit);
-    const regular = formatCoverageValue(values.selected.regular, values.valueUnit);
-    const noCover = formatCoverageValue(values.selected.missing, values.valueUnit);
+    const wholeNumbersForKm = currentActiveLayer?.id === 'bundesland';
+    const pano = formatCoverageValue(values.selected.pano, values.valueUnit, wholeNumbersForKm);
+    const regular = formatCoverageValue(values.selected.regular, values.valueUnit, wholeNumbersForKm);
+    const noCover = formatCoverageValue(values.selected.missing, values.valueUnit, wholeNumbersForKm);
 
     const sharePano = toPercent(values.share.pano);
     const shareRegular = toPercent(values.share.regular);
@@ -339,9 +343,9 @@ function getDetailedPopupHtml(props) {
     if (cached) return cached;
 
     const pieChartUrl = generatePieChartDataUrl({
-        k1: parseFloat(sharePano),
-        k2: parseFloat(shareRegular),
-        k3: parseFloat(shareNoCover),
+        k1: (values.share.pano ?? 0) * 100,
+        k2: (values.share.regular ?? 0) * 100,
+        k3: (values.share.missing ?? 0) * 100,
         size: 96
     });
 
@@ -500,6 +504,21 @@ function handleCoverageHover(event) {
     }
 
     setHoverOutlineState(map, COVERAGE_SOURCE_ID, feature?.id);
+
+    // Don’t show tooltip for the feature that’s already open in the detail panel
+    if (detailPanel && !detailPanel.hidden && selectedFeatureId != null) {
+        const selectionId = props?.[idProperty] ?? feature?.id ?? props?.ID_0 ?? props?.ID_1 ?? props?.ID_2 ?? props?.AGS_0 ?? props?.Kreis ?? props?.Gemeinde ?? props?.Bundesland;
+        if (selectionId != null && String(selectionId) === String(selectedFeatureId)) {
+            popup.remove();
+            currentFeatureId = null;
+            pendingPopupLngLat = null;
+            if (popupRafId) {
+                cancelAnimationFrame(popupRafId);
+                popupRafId = null;
+            }
+            return;
+        }
+    }
 
     pendingPopupLngLat = event.lngLat;
 
@@ -787,11 +806,15 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
     const protocol = new pmtiles.Protocol();
     maplibregl.addProtocol('pmtiles', protocol.tile);
 
+    const urlMap = typeof window !== 'undefined' ? parseMapFromSearchParams(new URL(window.location.href).searchParams) : null;
+    const initialCenter = urlMap ? urlMap.center : initialMapConfig.center;
+    const initialZoom = urlMap ? urlMap.zoom : initialMapConfig.zoom;
+
     map = new maplibregl.Map({
         container: 'map',
         style: mapStyles.light,
-        center: initialMapConfig.center,
-        zoom: initialMapConfig.zoom,
+        center: initialCenter,
+        zoom: initialZoom,
         attributionControl: false
     });
 
@@ -922,5 +945,12 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
         updateStreetsZoomWarning();
         updateTrafficSignsZoomWarning();
         updateCoverageLayerControlUi();
+    });
+
+    map.on('moveend', () => {
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+        const mapParam = buildMapParam([center.lng, center.lat], zoom);
+        updateUrlMapParam(mapParam);
     });
 }
