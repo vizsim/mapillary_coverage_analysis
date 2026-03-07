@@ -19,6 +19,7 @@ import {
     trafficSignsConfig,
     trafficSignsStyle,
     initialMapConfig,
+    mapAttribution,
     fillColorGradient,
     outlineStyle,
     lineWidthConfig,
@@ -967,8 +968,11 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
         container: 'map',
         style: mapStyles.light,
         center: initialMapConfig.center,
-        zoom: initialMapConfig.zoom
+        zoom: initialMapConfig.zoom,
+        attributionControl: false
     });
+
+    map.addControl(new maplibregl.AttributionControl({ customAttribution: mapAttribution, compact: true }));
 
     attachMapErrorTelemetry(map, { coverageSourceId: COVERAGE_SOURCE_ID });
 

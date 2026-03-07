@@ -4,8 +4,12 @@
 # Parquet files
 *.parquet
 
+*.gpkg
 
 *.fgb
 
 
 preprocessing/mynotes.txt
+
+
+calc_stats.ipynb

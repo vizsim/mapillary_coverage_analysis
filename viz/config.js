@@ -35,7 +35,7 @@ export const layerConfig = [
         pmtiles: `${PMTILES_PREFIX}${pmtilesBaseURL}kreise_wide.pmtiles`,
         minZoom: 7,
         maxZoom: 10,
-        labelProperty: 'Landkreis'
+        labelProperty: 'Kreis'
     },
     {
         id: 'bundesland',
@@ -164,6 +164,12 @@ export const lineWidthConfig = [
     12, 1.5, 
     15, 2
 ];
+
+// Attribution for coverage area shapes (Bundesländer, Landkreise, Gemeinden)
+export const shapesAttribution = 'Gebietsgrenzen: © <a href="https://www.bkg.bund.de" target="_blank" rel="noopener noreferrer">GeoBasis-DE / BKG</a>';
+
+// Full map attribution: appended to style attribution (OpenFreeMap adds its own line). Only MapLibre + shapes here.
+export const mapAttribution = 'MapLibre | ' + shapesAttribution;
 
 // Initial map configuration
 export const initialMapConfig = {
