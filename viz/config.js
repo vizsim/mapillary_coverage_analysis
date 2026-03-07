@@ -22,11 +22,19 @@ const pmtilesBaseURL = isLocalDev ? localPmtilesBaseURL : githubRawPmtilesBaseUR
 // The layer with the highest minZoom that is <= current zoom will be shown
 export const layerConfig = [
     {
+        id: 'gemeinden',
+        name: 'Gemeinden',
+        pmtiles: `${PMTILES_PREFIX}${pmtilesBaseURL}gem_wide.pmtiles`,
+        minZoom: 10,
+        maxZoom: 24,
+        labelProperty: 'Gemeinde'
+    },
+    {
         id: 'kreise',
         name: 'Landkreise',
         pmtiles: `${PMTILES_PREFIX}${pmtilesBaseURL}kreise_wide.pmtiles`,
         minZoom: 7,
-        maxZoom: 24,
+        maxZoom: 10,
         labelProperty: 'Landkreis'
     },
     {
@@ -37,15 +45,6 @@ export const layerConfig = [
         maxZoom: 7,
         labelProperty: 'Bundesland'
     }
-    // Future layers can be added here (e.g., Gemeinden)
-    // {
-    //     id: 'gemeinden',
-    //     name: 'Gemeinden',
-    //     pmtiles: 'pmtiles://../preprocessing/data/gemeinden_wide.pmtiles',
-    //     minZoom: 12,
-    //     maxZoom: 24,
-    //     labelProperty: 'Gemeinde'
-    // }
 ];
 
 // Coverage colors for different states
