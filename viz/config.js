@@ -185,14 +185,14 @@ export const trafficSignsStyle = {
     circleOpacity: 0.85
 };
 
-// Line width configuration for street layers
+// Line width configuration for street layers (Straßenabschnitte)
 export const lineWidthConfig = [
-    'interpolate', 
-    ['linear'], 
-    ['zoom'], 
-    9, 0.5, 
-    12, 1.5, 
-    15, 2
+    'interpolate',
+    ['linear'],
+    ['zoom'],
+    9, 0.9,
+    12, 2.2,
+    15, 2.8
 ];
 
 // Attribution for coverage area shapes (Bundesländer, Landkreise, Gemeinden)

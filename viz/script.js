@@ -1,5 +1,4 @@
 import { generatePieChartDataUrl } from './utils/generatePieIcon.js';
-import { whenSourcesAvailable } from './utils/sourceReadiness.js';
 import { attachMapErrorTelemetry } from './utils/errorTelemetry.js';
 import { createCoveragePopupHtml, createCoverageDetailPopupHtml } from './popup/popupTemplates.js';
 import { LruCache } from './utils/lruCache.js';
@@ -12,6 +11,41 @@ import {
     addLayerIfMissing,
     setLayersVisibility
 } from './map/mapSafeOps.js';
+import {
+    COVERAGE_HOVER_OUTLINE_LAYER_ID,
+    createHoverOutlineLayerSpec,
+    setHoverOutlineState,
+    clearHoverOutline
+} from './map/coverageHover.js';
+import {
+    addTrafficSignsSource,
+    addTrafficSignsLayer,
+    setTrafficSignsVisibility
+} from './map/trafficSignsLayers.js';
+import {
+    addMissingStreetsSources,
+    addMissingStreetsLayers,
+    setMissingStreetsVisibility,
+    clearMissingStreetsReadinessWatch,
+    setHighwayTypeHighlight,
+    clearHighwayTypeHighlight
+} from './map/missingStreetsLayers.js';
+import {
+    COVERAGE_SOURCE_ID,
+    COVERAGE_FILL_LAYER_ID,
+    COVERAGE_OUTLINE_LAYER_ID,
+    createCoverageFillLayer,
+    createCoverageOutlineLayer,
+    applyCoverageVisibility as applyCoverageVisibilityFromModule,
+    applyCoverageFillOpacity as applyCoverageFillOpacityFromModule,
+    applyCoverageOutlineContrast as applyCoverageOutlineContrastFromModule
+} from './map/coverageLayers.js';
+import {
+    COVERAGE_SELECTED_OUTLINE_LAYER_ID,
+    COVERAGE_VEIL_LAYER_ID,
+    setSelectedFeatureOutline,
+    clearSelectedFeatureOutline
+} from './map/coverageSelection.js';
 import { toPercent, toKilometers, firstFiniteNumber } from './utils/formatHelpers.js';
 import {
     layerConfig,
@@ -21,31 +55,12 @@ import {
     trafficSignsStyle,
     initialMapConfig,
     mapAttribution,
-    fillColorGradient,
-    outlineStyle,
-    lineWidthConfig,
     coverageColors,
     coverageLayerIds,
     missingStreetsLayerIds,
     missingStreetsMainRoadLayerIds,
     trafficSignsLayerIds,
-    MISSING_STREETS_SOURCE_DEFS,
-    MISSING_STREETS_CATEGORY_DEFS,
-    MAIN_ROAD_CLASS_FILTER,
-    HIGHWAY_TYPE_TO_VALUES
 } from './config.js';
-
-const COVERAGE_SOURCE_ID = 'coverage-data';
-const COVERAGE_FILL_LAYER_ID = 'coverage-fill';
-const COVERAGE_OUTLINE_LAYER_ID = 'coverage-outline';
-const COVERAGE_SELECTED_SOURCE_ID = 'coverage-selected';
-const COVERAGE_SELECTED_OUTLINE_LAYER_ID = 'coverage-selected-outline';
-const COVERAGE_VEIL_SOURCE_ID = 'coverage-veil-mask';
-const COVERAGE_VEIL_LAYER_ID = 'coverage-veil';
-const COVERAGE_HOVER_OUTLINE_SOURCE_ID = 'coverage-hover-outline';
-const COVERAGE_HOVER_OUTLINE_LAYER_ID = 'coverage-hover-outline';
-/** Bbox [minLon, minLat, maxLon, maxLat] for veil mask (covers Germany). No tile boundaries = no seam. */
-const VEIL_MASK_BBOX = [5, 46, 16, 56];
 
 /** Ab diesem Zoom wird der Straßenabschnitte-Switch automatisch aktiviert (falls noch aus). */
 const STREETS_AUTO_ENABLE_ZOOM = 9;
@@ -57,7 +72,6 @@ let map;
 let currentActiveLayer = null;
 let coverageLayerVisible = true;
 let manualCoverageLayerId = null;
-let disposeMissingStreetsReadinessWatch = null;
 let previousMapZoom = null;
 
 const popup = new maplibregl.Popup({
@@ -131,90 +145,17 @@ function getActiveLayerConfig(zoom) {
     return activeLayer;
 }
 
-function createCoverageFillLayer() {
-    return {
-        id: COVERAGE_FILL_LAYER_ID,
-        type: 'fill',
-        source: COVERAGE_SOURCE_ID,
-        'source-layer': 'default',
-        paint: {
-            'fill-color': fillColorGradient,
-            'fill-opacity': coverageFillOpacity
-        }
-    };
-}
-
-function createCoverageOutlineLayer() {
-    return {
-        id: COVERAGE_OUTLINE_LAYER_ID,
-        type: 'line',
-        source: COVERAGE_SOURCE_ID,
-        'source-layer': 'default',
-        paint: {
-            'line-color': outlineStyle.color,
-            'line-width': outlineStyle.width,
-            'line-opacity': outlineStyle.opacity
-        }
-    };
-}
-
 function applyCoverageVisibility() {
     const visibility = coverageLayerVisible ? 'visible' : 'none';
-    setLayersVisibility(map, coverageLayerIds, visibility);
-    if (hasLayer(map, COVERAGE_HOVER_OUTLINE_LAYER_ID)) {
-        map.setLayoutProperty(COVERAGE_HOVER_OUTLINE_LAYER_ID, 'visibility', visibility);
-    }
+    applyCoverageVisibilityFromModule(map, visibility, COVERAGE_HOVER_OUTLINE_LAYER_ID);
 }
 
 function applyCoverageFillOpacity() {
-    if (!map || !hasLayer(map, COVERAGE_FILL_LAYER_ID)) return;
-    map.setPaintProperty(COVERAGE_FILL_LAYER_ID, 'fill-opacity', coverageFillOpacity);
-}
-
-function hexToRgb(hexColor) {
-    const normalized = String(hexColor || '').trim().replace('#', '');
-    if (!/^[0-9a-f]{6}$/i.test(normalized)) return null;
-
-    return {
-        r: parseInt(normalized.slice(0, 2), 16),
-        g: parseInt(normalized.slice(2, 4), 16),
-        b: parseInt(normalized.slice(4, 6), 16)
-    };
-}
-
-function rgbToHex({ r, g, b }) {
-    const toHex = (value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, '0');
-    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-}
-
-function blendHexColors(baseHex, targetHex, ratio) {
-    const base = hexToRgb(baseHex);
-    const target = hexToRgb(targetHex);
-    if (!base || !target) return baseHex;
-
-    const mixRatio = Math.max(0, Math.min(1, ratio));
-    return rgbToHex({
-        r: base.r + (target.r - base.r) * mixRatio,
-        g: base.g + (target.g - base.g) * mixRatio,
-        b: base.b + (target.b - base.b) * mixRatio
-    });
-}
-
-function getDynamicCoverageOutlineOpacity() {
-    const baseOpacity = Number(outlineStyle.opacity) || 0;
-    const additionalOpacity = (1 - coverageFillOpacity) * 0.35;
-    return Math.max(baseOpacity, Math.min(1, baseOpacity + additionalOpacity));
-}
-
-function getDynamicCoverageOutlineColor() {
-    const darkenRatio = (1 - coverageFillOpacity) * 0.8;
-    return blendHexColors(outlineStyle.color, '#2f3745', darkenRatio);
+    applyCoverageFillOpacityFromModule(map, coverageFillOpacity);
 }
 
 function applyCoverageOutlineContrast() {
-    if (!map || !hasLayer(map, COVERAGE_OUTLINE_LAYER_ID)) return;
-    map.setPaintProperty(COVERAGE_OUTLINE_LAYER_ID, 'line-color', getDynamicCoverageOutlineColor());
-    map.setPaintProperty(COVERAGE_OUTLINE_LAYER_ID, 'line-opacity', getDynamicCoverageOutlineOpacity());
+    applyCoverageOutlineContrastFromModule(map, coverageFillOpacity);
 }
 
 function updateCoverageLayer() {
@@ -233,40 +174,20 @@ function updateCoverageLayer() {
         return;
     }
 
+    removeLayerIfExists(map, COVERAGE_VEIL_LAYER_ID);
+    removeLayerIfExists(map, COVERAGE_SELECTED_OUTLINE_LAYER_ID);
+    removeLayerIfExists(map, COVERAGE_HOVER_OUTLINE_LAYER_ID);
     coverageLayerIds.forEach((layerId) => removeLayerIfExists(map, layerId));
     removeSourceIfExists(map, COVERAGE_SOURCE_ID);
-    clearHoverOutline();
 
     addSourceIfMissing(map, COVERAGE_SOURCE_ID, {
         type: 'vector',
         url: activeLayer.pmtiles
     });
 
-    addLayerIfMissing(map, createCoverageFillLayer());
+    addLayerIfMissing(map, createCoverageFillLayer(coverageFillOpacity));
     addLayerIfMissing(map, createCoverageOutlineLayer());
-    addSourceIfMissing(map, COVERAGE_HOVER_OUTLINE_SOURCE_ID, {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] }
-    });
-    if (!hasLayer(map, COVERAGE_HOVER_OUTLINE_LAYER_ID)) {
-        map.addLayer({
-            id: COVERAGE_HOVER_OUTLINE_LAYER_ID,
-            type: 'line',
-            source: COVERAGE_HOVER_OUTLINE_SOURCE_ID,
-            paint: {
-                'line-color': outlineStyle.color,
-                'line-width': [
-                    'interpolate',
-                    ['exponential', 1],
-                    ['zoom'],
-                    5, 2,
-                    8, 3,
-                    12, 5
-                ],
-                'line-opacity': 0.95
-            }
-        });
-    }
+    map.addLayer(createHoverOutlineLayerSpec(COVERAGE_SOURCE_ID));
 
     currentActiveLayer = activeLayer;
     attachCoverageLayerEvents();
@@ -517,7 +438,7 @@ function bindDetailTableRowHover(popupElement, mapInstance) {
         if (!row) return;
         const key = row.getAttribute('data-highway-type');
         highlightRow(row);
-        setHighwayTypeHighlight(key);
+        setHighwayTypeHighlight(map, key);
     }
 
     function onRowLeave(e) {
@@ -526,7 +447,7 @@ function bindDetailTableRowHover(popupElement, mapInstance) {
         const related = e.relatedTarget;
         if (related && row.contains(related)) return;
         highlightRow(null);
-        clearHighwayTypeHighlight();
+        clearHighwayTypeHighlight(map, Boolean(toggleMainRoadsOnlyCheckbox?.checked));
     }
 
     rows.forEach((row) => {
@@ -553,24 +474,6 @@ function refreshOpenCoveragePopups() {
     }
 }
 
-function setHoverOutline(geometry) {
-    if (!map || !hasSource(map, COVERAGE_HOVER_OUTLINE_SOURCE_ID)) return;
-    const outlineGeometry = geometryExteriorOnly(geometry);
-    map.getSource(COVERAGE_HOVER_OUTLINE_SOURCE_ID).setData({
-        type: 'Feature',
-        geometry: outlineGeometry,
-        properties: {}
-    });
-}
-
-function clearHoverOutline() {
-    if (!map || !hasSource(map, COVERAGE_HOVER_OUTLINE_SOURCE_ID)) return;
-    map.getSource(COVERAGE_HOVER_OUTLINE_SOURCE_ID).setData({
-        type: 'FeatureCollection',
-        features: []
-    });
-}
-
 function handleCoverageHover(event) {
     if (!map || isDraggingDetailPopup) return;
 
@@ -578,17 +481,25 @@ function handleCoverageHover(event) {
 
     const features = Array.isArray(event?.features) ? event.features : [];
     if (features.length === 0) {
-        clearHoverOutline();
+        clearHoverOutline(map, COVERAGE_SOURCE_ID);
         return;
     }
 
     const feature = features[0];
     const props = feature?.properties || {};
-    const geometry = feature?.geometry;
-    const featureId = feature?.id || props.ID_0;
+    const idProperty = currentActiveLayer?.labelProperty || 'Kreis';
+    const featureId = feature?.id ?? props?.ID_0;
     currentHoverProps = props;
 
-    if (geometry) setHoverOutline(geometry);
+    if (typeof window !== 'undefined' && window.__COVERAGE_DEBUG_HOVER__) {
+        console.log('Hover – was aus dem Event kommt:', {
+            'feature.id': feature?.id,
+            'feature.id Typ': typeof feature?.id,
+            [idProperty]: props?.[idProperty]
+        });
+    }
+
+    setHoverOutlineState(map, COVERAGE_SOURCE_ID, feature?.id);
 
     pendingPopupLngLat = event.lngLat;
 
@@ -622,7 +533,7 @@ function handleCoverageLeave() {
     currentHoverProps = null;
     popup.remove();
     pendingPopupLngLat = null;
-    clearHoverOutline();
+    clearHoverOutline(map, COVERAGE_SOURCE_ID);
 
     if (popupRafId) {
         cancelAnimationFrame(popupRafId);
@@ -630,103 +541,10 @@ function handleCoverageLeave() {
     }
 }
 
-/** Use only exterior ring(s) of polygon geometry to avoid drawing inner boundaries (e.g. thin slits) as visible lines. */
-function geometryExteriorOnly(geometry) {
-    if (!geometry) return geometry;
-    if (geometry.type === 'Polygon' && geometry.coordinates?.length) {
-        return { type: 'Polygon', coordinates: [geometry.coordinates[0]] };
-    }
-    if (geometry.type === 'MultiPolygon' && geometry.coordinates?.length) {
-        return {
-            type: 'MultiPolygon',
-            coordinates: geometry.coordinates.map((part) => [part[0]])
-        };
-    }
-    return geometry;
-}
-
-/** Build a single polygon that covers VEIL_MASK_BBOX with hole(s) for the selected feature. No tiles → no tile-boundary seam. */
-function buildVeilMaskGeometry(selectedExteriorGeometry) {
-    const [minLon, minLat, maxLon, maxLat] = VEIL_MASK_BBOX;
-    const exterior = [
-        [minLon, minLat],
-        [maxLon, minLat],
-        [maxLon, maxLat],
-        [minLon, maxLat],
-        [minLon, minLat]
-    ];
-    const reverseRing = (ring) => ring.slice(0, -1).reverse().concat([ring[0]]);
-    let holes = [];
-    if (selectedExteriorGeometry?.type === 'Polygon' && selectedExteriorGeometry.coordinates?.[0]) {
-        holes = [reverseRing(selectedExteriorGeometry.coordinates[0])];
-    } else if (selectedExteriorGeometry?.type === 'MultiPolygon' && selectedExteriorGeometry.coordinates?.length) {
-        holes = selectedExteriorGeometry.coordinates.map((part) => reverseRing(part[0]));
-    }
-    return { type: 'Polygon', coordinates: [exterior, ...holes] };
-}
-
-function setSelectedFeatureOutline(geometry) {
-    if (!map) return;
-    removeLayerIfExists(map, COVERAGE_VEIL_LAYER_ID);
-    removeLayerIfExists(map, COVERAGE_SELECTED_OUTLINE_LAYER_ID);
-    removeSourceIfExists(map, COVERAGE_SELECTED_SOURCE_ID);
-    removeSourceIfExists(map, COVERAGE_VEIL_SOURCE_ID);
-
-    if (!hasSource(map, COVERAGE_SOURCE_ID)) return;
-
-    const outlineGeometry = geometryExteriorOnly(geometry);
-    addSourceIfMissing(map, COVERAGE_SELECTED_SOURCE_ID, {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: outlineGeometry, properties: {} }
-    });
-
-    const selectedLineWidth = [
-        'interpolate',
-        ['exponential', 1],
-        ['zoom'],
-        5, 1.25,
-        8, 2.5,
-        12, 5
-    ];
-    map.addLayer({
-        id: COVERAGE_SELECTED_OUTLINE_LAYER_ID,
-        type: 'line',
-        source: COVERAGE_SELECTED_SOURCE_ID,
-        paint: {
-            'line-color': outlineStyle.color,
-            'line-width': selectedLineWidth,
-            'line-opacity': 1
-        }
-    });
-
-    const veilGeometry = buildVeilMaskGeometry(outlineGeometry);
-    addSourceIfMissing(map, COVERAGE_VEIL_SOURCE_ID, {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: veilGeometry, properties: {} }
-    });
-    map.addLayer({
-        id: COVERAGE_VEIL_LAYER_ID,
-        type: 'fill',
-        source: COVERAGE_VEIL_SOURCE_ID,
-        paint: {
-            'fill-color': '#ffffff',
-            'fill-opacity': 0.55
-        }
-    }, COVERAGE_SELECTED_OUTLINE_LAYER_ID);
-}
-
-function clearSelectedFeatureOutline() {
-    if (!map) return;
-    removeLayerIfExists(map, COVERAGE_VEIL_LAYER_ID);
-    removeLayerIfExists(map, COVERAGE_SELECTED_OUTLINE_LAYER_ID);
-    removeSourceIfExists(map, COVERAGE_SELECTED_SOURCE_ID);
-    removeSourceIfExists(map, COVERAGE_VEIL_SOURCE_ID);
-}
-
 function closeDetailPanel() {
     if (detailPanel) detailPanel.hidden = true;
-    clearHighwayTypeHighlight();
-    clearSelectedFeatureOutline();
+    clearHighwayTypeHighlight(map, Boolean(toggleMainRoadsOnlyCheckbox?.checked));
+    clearSelectedFeatureOutline(map);
 }
 
 function openDetailPanel(html) {
@@ -743,10 +561,9 @@ function openDetailPanel(html) {
 function handleCoverageClick(event) {
     const features = Array.isArray(event?.features) ? event.features : [];
     if (features.length > 0) {
-        clearHoverOutline();
+        clearHoverOutline(map, COVERAGE_SOURCE_ID);
         const feature = features[0];
         const properties = feature?.properties || {};
-        const geometry = feature?.geometry;
         currentDetailProps = properties;
         const idProp = currentActiveLayer?.labelProperty || 'Kreis';
         selectedFeatureId = properties?.[idProp] ?? feature?.id ?? properties?.ID_0 ?? properties?.ID_1 ?? properties?.ID_2 ?? properties?.AGS_0 ?? properties?.Kreis ?? properties?.Gemeinde ?? properties?.Bundesland;
@@ -758,240 +575,8 @@ function handleCoverageClick(event) {
         const html = getDetailedPopupHtml(properties);
         openDetailPanel(html);
 
-        if (geometry) {
-            setSelectedFeatureOutline(geometry);
-        }
+        setSelectedFeatureOutline(map, COVERAGE_SOURCE_ID, 'default', selectedFeatureId, currentActiveLayer?.labelProperty || 'Kreis');
     }
-}
-
-function createMissingStreetsLayerSpec(categoryDef, sourceDef) {
-    return {
-        id: `missing-streets-${categoryDef.key}-${sourceDef.layerSuffix}`,
-        type: 'line',
-        source: sourceDef.sourceId,
-        'source-layer': sourceDef.sourceLayer,
-        minzoom: sourceDef.minzoom,
-        maxzoom: 22,
-        layout: { visibility: 'none' },
-        paint: {
-            'line-width': lineWidthConfig,
-            'line-color': categoryDef.color,
-            'line-opacity': 0.7
-        },
-        filter: categoryDef.filter
-    };
-}
-
-function areMissingStreetSourcesReady() {
-    return MISSING_STREETS_SOURCE_DEFS.every((sourceDef) => hasSource(map, sourceDef.sourceId));
-}
-
-function clearMissingStreetsReadinessWatch() {
-    if (!disposeMissingStreetsReadinessWatch) return;
-    disposeMissingStreetsReadinessWatch();
-    disposeMissingStreetsReadinessWatch = null;
-}
-
-function watchMissingStreetSourcesUntilAvailable() {
-    if (!map || disposeMissingStreetsReadinessWatch) return;
-
-    const sourceIds = MISSING_STREETS_SOURCE_DEFS.map((sourceDef) => sourceDef.sourceId);
-
-    disposeMissingStreetsReadinessWatch = whenSourcesAvailable(map, sourceIds, () => {
-        disposeMissingStreetsReadinessWatch = null;
-        addMissingStreetsLayers();
-        restoreLayerVisibilityFromUi();
-        updateStreetsZoomWarning();
-    });
-}
-
-function addMissingStreetsLayers() {
-    if (!map) return;
-
-    if (!areMissingStreetSourcesReady()) {
-        watchMissingStreetSourcesUntilAvailable();
-        return;
-    }
-
-    clearMissingStreetsReadinessWatch();
-
-    let addedLayers = 0;
-    for (const sourceDef of MISSING_STREETS_SOURCE_DEFS) {
-        for (const categoryDef of MISSING_STREETS_CATEGORY_DEFS) {
-            const layerSpec = createMissingStreetsLayerSpec(categoryDef, sourceDef);
-            const alreadyExists = hasLayer(map, layerSpec.id);
-            addLayerIfMissing(map, layerSpec);
-            if (!alreadyExists) {
-                addedLayers += 1;
-            }
-        }
-    }
-
-    if (addedLayers === 0) return;
-}
-
-function addMissingStreetsSources() {
-    if (!map) return;
-
-    for (const sourceDef of MISSING_STREETS_SOURCE_DEFS) {
-        addSourceIfMissing(map, sourceDef.sourceId, {
-            type: 'vector',
-            tiles: sourceDef.tileConfig.tiles,
-            minzoom: sourceDef.tileConfig.minzoom,
-            maxzoom: sourceDef.tileConfig.maxzoom
-        });
-    }
-}
-
-function setMissingStreetsVisibility(visible) {
-    if (!map) return;
-    const showMainRoadsOnly = Boolean(toggleMainRoadsOnlyCheckbox?.checked);
-
-    applyMissingStreetsRoadClassFilter(showMainRoadsOnly);
-
-    if (!visible) {
-        setLayersVisibility(map, missingStreetsLayerIds, 'none');
-        return;
-    }
-
-    if (!showMainRoadsOnly) {
-        setLayersVisibility(map, missingStreetsLayerIds, 'visible');
-        return;
-    }
-
-    setLayersVisibility(map, missingStreetsMainRoadLayerIds, 'visible');
-
-    const nonMainRoadLayerIds = missingStreetsLayerIds.filter(
-        (layerId) => !missingStreetsMainRoadLayerIds.includes(layerId)
-    );
-    setLayersVisibility(map, nonMainRoadLayerIds, 'none');
-}
-
-function getHighwayTypeFilter(highwayTypeKey) {
-    const values = HIGHWAY_TYPE_TO_VALUES[highwayTypeKey];
-    if (!values || values.length === 0) return null;
-
-    return [
-        'in',
-        ['downcase', ['to-string', ['coalesce', ['get', 'road'], ['get', 'highway'], '']]],
-        ['literal', values]
-    ];
-}
-
-function setHighwayTypeHighlight(highwayTypeKey) {
-    if (!map || hoveredHighwayType === highwayTypeKey) return;
-
-    hoveredHighwayType = highwayTypeKey;
-    const typeFilter = highwayTypeKey === 'all' ? null : getHighwayTypeFilter(highwayTypeKey);
-
-    for (const categoryDef of MISSING_STREETS_CATEGORY_DEFS) {
-        const roadsLayerId = `missing-streets-${categoryDef.key}-roads`;
-        if (!hasLayer(map, roadsLayerId)) continue;
-
-        const filter = typeFilter
-            ? ['all', categoryDef.filter, typeFilter]
-            : ['all', categoryDef.filter, MAIN_ROAD_CLASS_FILTER];
-
-        map.setFilter(roadsLayerId, filter);
-    }
-}
-
-function clearHighwayTypeHighlight() {
-    if (!map || hoveredHighwayType == null) return;
-
-    hoveredHighwayType = null;
-    const showMainRoadsOnly = Boolean(toggleMainRoadsOnlyCheckbox?.checked);
-    applyMissingStreetsRoadClassFilter(showMainRoadsOnly);
-}
-
-function applyMissingStreetsRoadClassFilter(showMainRoadsOnly) {
-    if (!map) return;
-
-    for (const categoryDef of MISSING_STREETS_CATEGORY_DEFS) {
-        const roadsLayerId = `missing-streets-${categoryDef.key}-roads`;
-        if (!hasLayer(map, roadsLayerId)) continue;
-
-        const filter = showMainRoadsOnly
-            ? ['all', categoryDef.filter, MAIN_ROAD_CLASS_FILTER]
-            : categoryDef.filter;
-
-        map.setFilter(roadsLayerId, filter);
-    }
-}
-
-function addTrafficSignsSource() {
-    if (!map) return;
-
-    addSourceIfMissing(map, trafficSignsConfig.sourceId, {
-        type: 'vector',
-        url: trafficSignsConfig.pmtiles
-    });
-}
-
-function createTrafficSignsLayerSpec() {
-    const signCodeExpression = [
-        'downcase',
-        [
-            'to-string',
-            [
-                'coalesce',
-                ['get', 'traffic_sign'],
-                ['get', 'VZ-Code'],
-                ['get', 'VZ_Code'],
-                ['get', 'vz_code'],
-                ['get', 'code'],
-                ''
-            ]
-        ]
-    ];
-
-    const isSupplementarySignExpression = ['>=', ['index-of', 'de:10', signCodeExpression], 0];
-
-    return {
-        id: trafficSignsLayerIds[0],
-        type: 'circle',
-        source: trafficSignsConfig.sourceId,
-        'source-layer': trafficSignsConfig.sourceLayer,
-        minzoom: trafficSignsConfig.minzoom,
-        maxzoom: trafficSignsConfig.maxzoom,
-        layout: { visibility: 'none' },
-        paint: {
-            'circle-color': [
-                'case',
-                isSupplementarySignExpression,
-                trafficSignsStyle.supplementarySignColor,
-                trafficSignsStyle.mainSignColor
-            ],
-            'circle-radius': trafficSignsStyle.circleRadius,
-            'circle-stroke-color': [
-                'case',
-                isSupplementarySignExpression,
-                trafficSignsStyle.supplementarySignStrokeColor,
-                trafficSignsStyle.mainSignStrokeColor
-            ],
-            'circle-stroke-width': trafficSignsStyle.circleStrokeWidth,
-            'circle-opacity': trafficSignsStyle.circleOpacity
-        }
-    };
-}
-
-function addTrafficSignsLayer() {
-    if (!map || !hasSource(map, trafficSignsConfig.sourceId)) return;
-
-    const layerSpec = createTrafficSignsLayerSpec();
-    if (hasLayer(map, layerSpec.id)) return;
-
-    if (hasLayer(map, missingStreetsLayerIds[0])) {
-        map.addLayer(layerSpec, missingStreetsLayerIds[0]);
-        return;
-    }
-
-    map.addLayer(layerSpec);
-}
-
-function setTrafficSignsVisibility(visible) {
-    if (!map) return;
-    setLayersVisibility(map, trafficSignsLayerIds, visible ? 'visible' : 'none');
 }
 
 const toggleInfoBtn = document.getElementById('toggle-info');
@@ -1134,10 +719,10 @@ function updateTrafficSignsZoomWarning() {
 
 function restoreLayerVisibilityFromUi() {
     const streetsVisible = Boolean(toggleStreetsCheckbox?.checked);
-    setMissingStreetsVisibility(streetsVisible);
+    setMissingStreetsVisibility(map, streetsVisible, Boolean(toggleMainRoadsOnlyCheckbox?.checked));
 
     const trafficSignsVisible = Boolean(toggleTrafficSignsCheckbox?.checked);
-    setTrafficSignsVisibility(trafficSignsVisible);
+    setTrafficSignsVisibility(map, trafficSignsVisible);
 
     coverageLayerVisible = Boolean(toggleKreiseCheckbox?.checked ?? true);
     applyCoverageVisibility();
@@ -1154,13 +739,14 @@ function rebuildRuntimeLayers() {
     if (!map) return;
 
     try {
-        addTrafficSignsSource();
-        addMissingStreetsSources();
+        addTrafficSignsSource(map);
+        addMissingStreetsSources(map);
         updateCoverageLayer();
-        addTrafficSignsLayer();
-        addMissingStreetsLayers();
-        restoreLayerVisibilityFromUi();
-        updateStreetsZoomWarning();
+        addTrafficSignsLayer(map, missingStreetsLayerIds[0]);
+        addMissingStreetsLayers(map, () => {
+            restoreLayerVisibilityFromUi();
+            updateStreetsZoomWarning();
+        });
         updateTrafficSignsZoomWarning();
     } catch (error) {
         console.error('Error rebuilding layers:', error);
@@ -1236,7 +822,7 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
     if (toggleStreetsCheckbox) {
         toggleStreetsCheckbox.addEventListener('change', (event) => {
             const isChecked = Boolean(event?.target?.checked);
-            setMissingStreetsVisibility(isChecked);
+            setMissingStreetsVisibility(map, isChecked, Boolean(toggleMainRoadsOnlyCheckbox?.checked));
 
             setElementVisibility(streetsLegend, isChecked);
 
@@ -1247,7 +833,7 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
 
     if (toggleMainRoadsOnlyCheckbox) {
         toggleMainRoadsOnlyCheckbox.addEventListener('change', () => {
-            setMissingStreetsVisibility(Boolean(toggleStreetsCheckbox?.checked));
+            setMissingStreetsVisibility(map, Boolean(toggleStreetsCheckbox?.checked), Boolean(toggleMainRoadsOnlyCheckbox?.checked));
             normalizeInfoPanelScroll();
         });
     }
@@ -1255,7 +841,7 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
     if (toggleTrafficSignsCheckbox) {
         toggleTrafficSignsCheckbox.addEventListener('change', (event) => {
             const isChecked = Boolean(event?.target?.checked);
-            setTrafficSignsVisibility(isChecked);
+            setTrafficSignsVisibility(map, isChecked);
 
             setElementVisibility(trafficSignsLegend, isChecked);
 
@@ -1316,10 +902,10 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
 
         if (zoom >= STREETS_AUTO_ENABLE_ZOOM && toggleStreetsCheckbox && !toggleStreetsCheckbox.checked) {
             toggleStreetsCheckbox.checked = true;
-            setMissingStreetsVisibility(true);
+            setMissingStreetsVisibility(map, true, Boolean(toggleMainRoadsOnlyCheckbox?.checked));
             setElementVisibility(streetsLegend, true);
         } else {
-            setMissingStreetsVisibility(Boolean(toggleStreetsCheckbox?.checked));
+            setMissingStreetsVisibility(map, Boolean(toggleStreetsCheckbox?.checked), Boolean(toggleMainRoadsOnlyCheckbox?.checked));
         }
 
         if (previousMapZoom !== null && previousMapZoom < STREETS_AUTO_ENABLE_ZOOM && zoom >= STREETS_AUTO_ENABLE_ZOOM) {
