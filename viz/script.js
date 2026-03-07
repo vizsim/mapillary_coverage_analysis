@@ -1,4 +1,5 @@
 import { generatePieChartDataUrl } from './utils/generatePieIcon.js';
+import { addDefaultTrafficSignIcon, setupTrafficSignImageHandler } from './utils/trafficSignIcons.js';
 import { attachMapErrorTelemetry } from './utils/errorTelemetry.js';
 import { createCoveragePopupHtml, createCoverageDetailPopupHtml } from './popup/popupTemplates.js';
 import { LruCache } from './utils/lruCache.js';
@@ -61,6 +62,7 @@ import {
     missingStreetsLayerIds,
     missingStreetsMainRoadLayerIds,
     trafficSignsLayerIds,
+    TRAFFIC_SIGNS_ICON_MIN_ZOOM,
 } from './config.js';
 
 /** Ab diesem Zoom wird der Straßenabschnitte-Switch automatisch aktiviert (falls noch aus). */
@@ -608,6 +610,8 @@ const streetsLegend = document.getElementById('streets-legend');
 const streetsZoomWarning = document.getElementById('streets-zoom-warning');
 const toggleTrafficSignsCheckbox = document.getElementById('toggle-traffic-signs-layer');
 const trafficSignsLegend = document.getElementById('traffic-signs-legend');
+const trafficSignsLegendCircles = document.getElementById('traffic-signs-legend-circles');
+const trafficSignsLegendIcons = document.getElementById('traffic-signs-legend-icons');
 const trafficSignsZoomWarning = document.getElementById('traffic-signs-zoom-warning');
 const toggleKreiseCheckbox = document.getElementById('toggle-kreise-layer');
 const kreiseLegend = document.getElementById('kreise-legend');
@@ -742,6 +746,39 @@ function updateTrafficSignsZoomWarning() {
     trafficSignsZoomWarning.style.display = isTrafficSignsChecked && currentZoom < trafficSignsConfig.minzoom ? 'block' : 'none';
 }
 
+/** Legende Verkehrszeichen: nur einen Block anzeigen – Punkte (9–&lt;13) oder Icons (≥13). */
+function updateTrafficSignsLegend(zoom) {
+    if (!trafficSignsLegendCircles || !trafficSignsLegendIcons) return;
+    const showIcons = zoom >= TRAFFIC_SIGNS_ICON_MIN_ZOOM;
+    trafficSignsLegendCircles.style.display = showIcons ? 'none' : 'flex';
+    trafficSignsLegendIcons.style.display = showIcons ? 'flex' : 'none';
+}
+
+/** Icon-Liste der Legende einmal aus Config befüllen (Icons + Bezeichnungen). */
+function buildTrafficSignsLegendIcons() {
+    if (!trafficSignsLegendIcons) return;
+    trafficSignsLegendIcons.style.display = 'none';
+    const entries = trafficSignsConfig.trafficSignLegendEntries || [];
+    const urls = trafficSignsConfig.trafficSignIconUrls || {};
+    trafficSignsLegendIcons.textContent = '';
+    for (const { id, label } of entries) {
+        const url = urls[id];
+        if (!url) continue;
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        const img = document.createElement('img');
+        img.className = 'legend-item-icon';
+        img.src = url;
+        img.alt = '';
+        img.loading = 'lazy';
+        const span = document.createElement('span');
+        span.className = 'legend-item-label';
+        span.textContent = label;
+        item.append(img, span);
+        trafficSignsLegendIcons.appendChild(item);
+    }
+}
+
 function restoreLayerVisibilityFromUi() {
     const streetsVisible = Boolean(toggleStreetsCheckbox?.checked);
     setMissingStreetsVisibility(map, streetsVisible, Boolean(toggleMainRoadsOnlyCheckbox?.checked));
@@ -755,6 +792,7 @@ function restoreLayerVisibilityFromUi() {
     setElementVisibility(streetsLegend, streetsVisible);
     setElementVisibility(kreiseLegend, coverageLayerVisible);
     setElementVisibility(trafficSignsLegend, trafficSignsVisible);
+    if (map) updateTrafficSignsLegend(map.getZoom());
 
     updateCoverageLayerControlUi();
     normalizeInfoPanelScroll();
@@ -767,11 +805,11 @@ function rebuildRuntimeLayers() {
         addTrafficSignsSource(map);
         addMissingStreetsSources(map);
         updateCoverageLayer();
-        addTrafficSignsLayer(map, missingStreetsLayerIds[0]);
         addMissingStreetsLayers(map, () => {
             restoreLayerVisibilityFromUi();
             updateStreetsZoomWarning();
         });
+        addTrafficSignsLayer(map);
         updateTrafficSignsZoomWarning();
     } catch (error) {
         console.error('Error rebuilding layers:', error);
@@ -783,8 +821,9 @@ if (toggleInfoBtn && infoPanel) {
         const shouldOpen = infoPanel.style.display === 'none';
         infoPanel.style.display = shouldOpen ? 'flex' : 'none';
 
-        if (shouldOpen && infoContent) {
-            infoContent.scrollTop = 0;
+        if (shouldOpen) {
+            if (infoContent) infoContent.scrollTop = 0;
+            if (map) updateTrafficSignsLegend(map.getZoom());
         }
 
         normalizeInfoPanelScroll();
@@ -840,6 +879,7 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
             map.setStyle(newStyle);
 
             map.once('style.load', () => {
+                addDefaultTrafficSignIcon(map);
                 currentActiveLayer = null;
                 clearMissingStreetsReadinessWatch();
                 rebuildRuntimeLayers();
@@ -909,8 +949,12 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
     }
 
     map.on('load', () => {
+        addDefaultTrafficSignIcon(map);
+        setupTrafficSignImageHandler(map);
+        buildTrafficSignsLegendIcons();
         const initialZoom = map.getZoom();
         previousMapZoom = initialZoom;
+        updateTrafficSignsLegend(initialZoom);
         rebuildRuntimeLayers();
         if (initialZoom >= STREETS_AUTO_ENABLE_ZOOM) {
             coverageFillOpacity = COVERAGE_OPACITY_AT_ZOOM_10;
@@ -924,8 +968,10 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
         updateCoverageLayerControlUi();
     });
 
+    map.on('zoom', () => updateTrafficSignsLegend(map.getZoom()));
     map.on('zoomend', () => {
         updateCoverageLayer();
+        updateTrafficSignsLegend(map.getZoom());
 
         const zoom = map.getZoom();
 

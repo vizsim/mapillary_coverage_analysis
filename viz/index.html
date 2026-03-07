@@ -177,13 +177,18 @@
                         ℹ️ Daten sind ab Zoomstufe 9+ sichtbar.
                     </div>
                     <div id="traffic-signs-legend">
-                        <div class="legend-item">
-                            <span class="legend-color" style="background: #2563eb; border-radius: 50%; width: 12px; height: 12px;"></span>
-                            <span>Hauptzeichen</span>
+                        <div id="traffic-signs-legend-circles" class="traffic-signs-legend-block">
+                            <div class="legend-item">
+                                <span class="legend-color legend-circle" style="background: var(--traffic-sign-main-color, #154889);"></span>
+                                <span>Hauptzeichen</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color legend-circle" style="background: var(--traffic-sign-supplementary-color, #ffffff); border: 1px solid #9ca3af;"></span>
+                                <span>Zusatzzeichen</span>
+                            </div>
                         </div>
-                        <div class="legend-item">
-                            <span class="legend-color" style="background: #ffffff; border: 1px solid #9ca3af; border-radius: 50%; width: 12px; height: 12px;"></span>
-                            <span>Zusatzzeichen</span>
+                        <div id="traffic-signs-legend-icons" class="traffic-signs-legend-block" hidden>
+                            <!-- Einträge werden per JS aus config befüllt -->
                         </div>
                         <div class="legend-source">
                             Quelle: <a href="https://github.com/vizsim/mapillary_trafficsigns/tree/feature/docker-notebook/use_cases/cycleway_complete_campaign/ts_output" target="_blank" rel="noopener noreferrer">mapillary_trafficsigns/ts_output</a>

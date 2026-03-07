@@ -294,6 +294,36 @@ body {
     gap: 6px;
 }
 
+.traffic-signs-legend-block {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Punkte in der Verkehrszeichen-Legende: runde Kreise wie auf der Karte (überschreibt .legend-color). */
+#traffic-signs-legend-circles .legend-color.legend-circle {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+#traffic-signs-legend-icons .legend-item {
+    align-items: center;
+    gap: 8px;
+}
+
+#traffic-signs-legend-icons .legend-item-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+#traffic-signs-legend-icons .legend-item-label {
+    font-size: 12px;
+    line-height: 1.3;
+}
+
 .coverage-opacity-control {
     margin-top: 4px;
     font-size: 12px;
