@@ -196,6 +196,68 @@
                     </div>
                 </div>
 
+                <!-- Radinfrastruktur Sektion -->
+                <div class="legend-section">
+                    <div class="legend-toggle-row">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="toggle-bike-lanes-layer">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <div class="legend-toggle-row__title">
+                            <h3>Radinfrastruktur</h3>
+                            <span class="info-icon" title="">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                                <span class="info-tooltip">
+                                    Fahrradinfrastruktur und Führungsformen basierend auf OpenStreetMap-Daten und der tilda-geo radinfra.de Klassifizierung.<br><br>
+                                    • <strong>Baul. abgesetzt von Kfz</strong>: Separat angelegte Radwege<br>
+                                    • <strong>Eigenständig auf Fahrbahn</strong>: Radstreifen auf der Fahrbahn, z.B. Radfahrstreifen.<br>
+                                    • <strong>Mit Fußverkehr</strong>: Geteilte Wege mit Fußgängern, z.B. gemeinsame Geh- und Radwege.<br>
+                                    • <strong>Mit Kfz (explizit)</strong>: Gemeinsame Nutzung mit Autos möglich, z.B. Schutzstreifen.<br>
+                                    • <strong>Fußverkehr mit Rad frei</strong>: Wege wo Radfahren erlaubt ist, z.B. Fußwege mit Radfreigabe.<br>
+                                    • <strong>Führungsform unklar</strong>: Klassifikation (noch) nicht eindeutig.<br><br>
+                                    Quelle: <a id="tilda-geo-link-tooltip" href="https://tilda-geo.de/regionen/radinfra?map=12/52.382/12.941&config=1p2va4k.7h39.9fm70g&v=2" target="_blank" rel="noopener noreferrer">tilda-geo.de</a>
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="bike-lanes-zoom-warning" class="legend-zoom-warning">
+                        ℹ️ Daten sind ab Zoomstufe 9+ sichtbar.
+                    </div>
+                    <div id="bike-lanes-legend">
+                        <div class="legend-item">
+                            <span class="legend-line solid" style="background: #174ed9;"></span>
+                            <span class="legend-text">Führung baul. abgesetzt von Kfz</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-line solid" style="background: #0098f0;"></span>
+                            <span class="legend-text">Führung eigenständig auf Fahrbahn</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-line dashed" style="--line-color: #174ed9;"></span>
+                            <span class="legend-text">Führung mit Fußverkehr</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-line dashed" style="--line-color: #9fb9f9;"></span>
+                            <span class="legend-text">Fußverkehr mit Rad frei</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-line dashed" style="--line-color: #0098f0;"></span>
+                            <span class="legend-text">Führung mit Kfz (explizit)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-line dashed" style="--line-color: #a97bea;"></span>
+                            <span class="legend-text">Führungsform unklar</span>
+                        </div>
+                        <div class="legend-source">
+                            Quelle: <a id="tilda-geo-link-legend" href="https://tilda-geo.de/regionen/radinfra?map=12/52.382/12.941&config=1p2va4k.7h39.9fm70g&v=2" target="_blank" rel="noopener noreferrer">tilda-geo.de</a>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="github-links">
                     <img src="https://img.shields.io/badge/Status-Experimental-red" alt="Status: Experimental" class="status-badge">
                     <div class="github-links__spacer"></div>

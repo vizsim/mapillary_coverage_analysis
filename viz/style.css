@@ -299,7 +299,8 @@ body {
 }
 #kreise-legend,
 #streets-legend,
-#traffic-signs-legend {
+#traffic-signs-legend,
+#bike-lanes-legend {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -464,10 +465,33 @@ body {
 }
 
 .legend-line {
-    width: 20px;
+    width: 22px;
     height: 3px;
     border-radius: 2px;
     flex-shrink: 0;
+}
+
+#bike-lanes-legend .legend-line {
+    height: 3px;
+}
+
+#bike-lanes-legend .legend-line.solid {
+    width: 22px;
+    background: var(--line-color, currentColor);
+}
+
+#bike-lanes-legend .legend-line.dashed {
+    width: 21px;
+    background: repeating-linear-gradient(
+        to right,
+        var(--line-color, currentColor) 0 6px,
+        transparent 6px 8px
+    );
+    border-radius: 2px;
+}
+
+#bike-lanes-legend .legend-text {
+    line-height: 1.3;
 }
 
 /* Legendenfarben (Abstimmung mit config.js / Karten-Layern) */

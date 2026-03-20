@@ -32,6 +32,11 @@ import {
     clearHighwayTypeHighlight
 } from './map/missingStreetsLayers.js';
 import {
+    addBikeLanesSource,
+    addBikeLanesLayers,
+    setBikeLanesVisibility
+} from './map/bikeLanesLayers.js';
+import {
     COVERAGE_SOURCE_ID,
     COVERAGE_FILL_LAYER_ID,
     COVERAGE_OUTLINE_LAYER_ID,
@@ -619,6 +624,9 @@ const trafficSignsLegend = document.getElementById('traffic-signs-legend');
 const trafficSignsLegendCircles = document.getElementById('traffic-signs-legend-circles');
 const trafficSignsLegendIcons = document.getElementById('traffic-signs-legend-icons');
 const trafficSignsZoomWarning = document.getElementById('traffic-signs-zoom-warning');
+const toggleBikeLanesCheckbox = document.getElementById('toggle-bike-lanes-layer');
+const bikeLanesLegend = document.getElementById('bike-lanes-legend');
+const bikeLanesZoomWarning = document.getElementById('bike-lanes-zoom-warning');
 const toggleKreiseCheckbox = document.getElementById('toggle-kreise-layer');
 const kreiseLegend = document.getElementById('kreise-legend');
 const coverageLayerControl = document.getElementById('coverage-layer-control');
@@ -770,6 +778,36 @@ function updateTrafficSignsZoomWarning() {
     trafficSignsZoomWarning.style.display = isTrafficSignsChecked && currentZoom < trafficSignsConfig.minzoom ? 'block' : 'none';
 }
 
+function updateBikeLanesZoomWarning() {
+    if (!map || !bikeLanesZoomWarning) return;
+
+    const currentZoom = map.getZoom();
+    const isBikeLanesChecked = Boolean(toggleBikeLanesCheckbox?.checked);
+
+    bikeLanesZoomWarning.style.display = isBikeLanesChecked && currentZoom < 9 ? 'block' : 'none';
+}
+
+function updateTildaGeoLinks() {
+    if (!map) return;
+
+    const center = map.getCenter();
+    const zoom = Math.round(map.getZoom());
+    const lat = center.lat.toFixed(3);
+    const lng = center.lng.toFixed(3);
+
+    const baseUrl = `https://tilda-geo.de/regionen/radinfra?map=${zoom}/${lat}/${lng}&config=1p2va4k.7h39.9fm70g&v=2`;
+
+    const tooltipLink = document.getElementById('tilda-geo-link-tooltip');
+    if (tooltipLink) {
+        tooltipLink.href = baseUrl;
+    }
+
+    const legendLink = document.getElementById('tilda-geo-link-legend');
+    if (legendLink) {
+        legendLink.href = baseUrl;
+    }
+}
+
 /** Legende Verkehrszeichen: nur einen Block anzeigen – Punkte (9–&lt;13) oder Icons (≥13). */
 function updateTrafficSignsLegend(zoom) {
     if (!trafficSignsLegendCircles || !trafficSignsLegendIcons) return;
@@ -810,12 +848,16 @@ function restoreLayerVisibilityFromUi() {
     const trafficSignsVisible = Boolean(toggleTrafficSignsCheckbox?.checked);
     setTrafficSignsVisibility(map, trafficSignsVisible);
 
+    const bikeLanesVisible = Boolean(toggleBikeLanesCheckbox?.checked);
+    setBikeLanesVisibility(map, bikeLanesVisible);
+
     coverageLayerVisible = Boolean(toggleKreiseCheckbox?.checked ?? true);
     applyCoverageVisibility();
 
     setElementVisibility(streetsLegend, streetsVisible);
     setElementVisibility(kreiseLegend, coverageLayerVisible);
     setElementVisibility(trafficSignsLegend, trafficSignsVisible);
+    setElementVisibility(bikeLanesLegend, bikeLanesVisible);
     if (map) updateTrafficSignsLegend(map.getZoom());
 
     updateCoverageLayerControlUi();
@@ -828,13 +870,16 @@ function rebuildRuntimeLayers() {
     try {
         addTrafficSignsSource(map);
         addMissingStreetsSources(map);
+        addBikeLanesSource(map);
         updateCoverageLayer();
         addMissingStreetsLayers(map, () => {
             restoreLayerVisibilityFromUi();
             updateStreetsZoomWarning();
         });
         addTrafficSignsLayer(map);
+        addBikeLanesLayers(map);
         updateTrafficSignsZoomWarning();
+        updateBikeLanesZoomWarning();
     } catch (error) {
         console.error('Error rebuilding layers:', error);
     }
@@ -908,6 +953,7 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
                 currentActiveLayer = null;
                 clearMissingStreetsReadinessWatch();
                 rebuildRuntimeLayers();
+                updateTildaGeoLinks();
                 updateCoverageLayerControlUi();
             });
         });
@@ -940,6 +986,18 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
             setElementVisibility(trafficSignsLegend, isChecked);
 
             updateTrafficSignsZoomWarning();
+            normalizeInfoPanelScroll();
+        });
+    }
+
+    if (toggleBikeLanesCheckbox) {
+        toggleBikeLanesCheckbox.addEventListener('change', (event) => {
+            const isChecked = Boolean(event?.target?.checked);
+            setBikeLanesVisibility(map, isChecked);
+
+            setElementVisibility(bikeLanesLegend, isChecked);
+
+            updateBikeLanesZoomWarning();
             normalizeInfoPanelScroll();
         });
     }
@@ -992,6 +1050,7 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
             applyCoverageFillOpacity();
             applyCoverageOutlineContrast();
         }
+        updateTildaGeoLinks();
         updateCoverageLayerControlUi();
     });
 
@@ -1025,6 +1084,8 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
         previousMapZoom = zoom;
         updateStreetsZoomWarning();
         updateTrafficSignsZoomWarning();
+        updateBikeLanesZoomWarning();
+        updateTildaGeoLinks();
         updateCoverageLayerControlUi();
     });
 
@@ -1033,5 +1094,6 @@ if (typeof maplibregl === 'undefined' || typeof pmtiles === 'undefined') {
         const zoom = map.getZoom();
         const mapParam = buildMapParam([center.lng, center.lat], zoom);
         updateUrlMapParam(mapParam);
+        updateTildaGeoLinks();
     });
 }
