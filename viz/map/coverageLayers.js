@@ -94,13 +94,18 @@ export function blendHexColors(baseHex, targetHex, ratio) {
     });
 }
 
+function clampUnitInterval(value) {
+    return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+}
+
 /**
  * @param {number} fillOpacity - Current fill opacity (lower = stronger outline)
  * @returns {number}
  */
 export function getDynamicCoverageOutlineOpacity(fillOpacity) {
+    const normalizedOpacity = clampUnitInterval(fillOpacity);
     const baseOpacity = Number(outlineStyle.opacity) || 0;
-    const additionalOpacity = (1 - fillOpacity) * 0.35;
+    const additionalOpacity = (1 - normalizedOpacity) * 0.3;
     return Math.max(baseOpacity, Math.min(1, baseOpacity + additionalOpacity));
 }
 
@@ -109,8 +114,7 @@ export function getDynamicCoverageOutlineOpacity(fillOpacity) {
  * @returns {string} Hex color
  */
 export function getDynamicCoverageOutlineColor(fillOpacity) {
-    const darkenRatio = (1 - fillOpacity) * 0.8;
-    return blendHexColors(outlineStyle.color, '#2f3745', darkenRatio);
+    return blendHexColors(outlineStyle.color, '#2f3745', 0.8);
 }
 
 /**

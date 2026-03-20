@@ -259,7 +259,8 @@ export const lineWidthConfig = [
 ];
 
 // Attribution for coverage area shapes (Bundesländer, Landkreise, Gemeinden)
-export const shapesAttribution = 'Gebietsgrenzen: © <a href="https://www.bkg.bund.de" target="_blank" rel="noopener noreferrer">GeoBasis-DE / BKG</a>';
+// 
+export const shapesAttribution = 'Gebietsgrenzen: © <a href="https://gdz.bkg.bund.de/index.php/default/digitale-geodaten/verwaltungsgebiete/verwaltungsgebiete-1-5-000-000-stand-01-01-vg5000-01-01.html" target="_blank" rel="noopener noreferrer">GeoBasis-DE / BKG</a>';
 
 // Full map attribution: appended to style attribution (OpenFreeMap adds its own line). Only MapLibre + shapes here.
 export const mapAttribution = 'MapLibre | ' + shapesAttribution;
