@@ -59,6 +59,26 @@ const filterComplementary = [
 ];
 const filterMain = ['!', filterComplementary];
 
+/**
+ * Modul-State: untere Datumsgrenze (YYYY-MM-DD) für `last_seen_at`.
+ * Wird via setTrafficSignsDateCutoff gesetzt und in jeden Filter eingewebt,
+ * sodass nur Schilder mit last_seen_at >= cutoff angezeigt werden.
+ */
+let currentDateCutoff = null;
+
+function buildDateFilter() {
+    if (!currentDateCutoff) return null;
+    // Fehlende last_seen_at-Werte werden ausgeschlossen (leerer String < jedem Datum).
+    return ['>=', ['coalesce', ['get', 'last_seen_at'], ''], currentDateCutoff];
+}
+
+function combineFilters(...filters) {
+    const valid = filters.filter(Boolean);
+    if (valid.length === 0) return null;
+    if (valid.length === 1) return valid[0];
+    return ['all', ...valid];
+}
+
 /** Zoom-Grenze: ab hier SVG-Icons, davor Kreise. */
 
 /**
@@ -74,11 +94,13 @@ function createTrafficSignsCircleLayerSpec() {
         12, 0.75,
         15, 0.9
     ];
+    const dateFilter = buildDateFilter();
     return {
         id: trafficSignsCircleLayerId,
         type: 'symbol',
         source: trafficSignsConfig.sourceId,
         'source-layer': trafficSignsConfig.sourceLayer,
+        ...(dateFilter ? { filter: dateFilter } : {}),
         minzoom: trafficSignsConfig.minzoom,
         maxzoom: TRAFFIC_SIGNS_ICON_MIN_ZOOM,
         layout: {
@@ -108,7 +130,7 @@ function createTrafficSignsMainLayerSpec() {
         type: 'symbol',
         source: trafficSignsConfig.sourceId,
         'source-layer': trafficSignsConfig.sourceLayer,
-        filter: filterMain,
+        filter: combineFilters(filterMain, buildDateFilter()),
         minzoom: TRAFFIC_SIGNS_ICON_MIN_ZOOM,
         maxzoom: trafficSignsConfig.maxzoom,
         layout: {
@@ -131,7 +153,7 @@ function createTrafficSignsComplementaryLayerSpec() {
         type: 'symbol',
         source: trafficSignsConfig.sourceId,
         'source-layer': trafficSignsConfig.sourceLayer,
-        filter: filterComplementary,
+        filter: combineFilters(filterComplementary, buildDateFilter()),
         minzoom: TRAFFIC_SIGNS_ICON_MIN_ZOOM,
         maxzoom: trafficSignsConfig.maxzoom,
         layout: {
@@ -185,4 +207,25 @@ export function addTrafficSignsLayer(map, beforeLayerId) {
 export function setTrafficSignsVisibility(map, visible) {
     if (!map) return;
     setLayersVisibility(map, trafficSignsLayerIds, visible ? 'visible' : 'none');
+}
+
+/**
+ * Set the lower date cutoff (YYYY-MM-DD) for `last_seen_at`. Persists in module
+ * state so re-added layers (z.B. nach Style-Switch) übernehmen den Filter.
+ * @param {object} map - MapLibre map instance
+ * @param {string|null} cutoffYmd - z.B. '2023-11-18', oder null um Filter zu entfernen
+ */
+export function setTrafficSignsDateCutoff(map, cutoffYmd) {
+    currentDateCutoff = cutoffYmd || null;
+    if (!map) return;
+    const dateFilter = buildDateFilter();
+    if (hasLayer(map, trafficSignsCircleLayerId)) {
+        map.setFilter(trafficSignsCircleLayerId, dateFilter || null);
+    }
+    if (hasLayer(map, trafficSignsLayerIds[1])) {
+        map.setFilter(trafficSignsLayerIds[1], combineFilters(filterMain, dateFilter));
+    }
+    if (hasLayer(map, trafficSignsLayerIds[2])) {
+        map.setFilter(trafficSignsLayerIds[2], combineFilters(filterComplementary, dateFilter));
+    }
 }

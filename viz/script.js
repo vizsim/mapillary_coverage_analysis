@@ -21,7 +21,8 @@ import {
 import {
     addTrafficSignsSource,
     addTrafficSignsLayer,
-    setTrafficSignsVisibility
+    setTrafficSignsVisibility,
+    setTrafficSignsDateCutoff
 } from './map/trafficSignsLayers.js';
 import {
     addMissingStreetsSources,
@@ -54,6 +55,7 @@ import {
 } from './map/coverageSelection.js';
 import { toPercent, toKilometers, firstFiniteNumber } from './utils/formatHelpers.js';
 import { parseMapFromSearchParams, buildMapParam, updateUrlMapParam } from './utils/permalink.js';
+import { loadLayerUpdateDates } from './utils/layerUpdateDates.js';
 import {
     layerConfig,
     mapStyles,
@@ -656,6 +658,9 @@ function setupInfoPanelTooltips() {
     });
 }
 setupInfoPanelTooltips();
+loadLayerUpdateDates({
+    onStreetsCutoff: (ymd) => setTrafficSignsDateCutoff(map, ymd)
+});
 
 function getCoverageLayersForControl() {
     return [...layerConfig].sort((a, b) => a.minZoom - b.minZoom);

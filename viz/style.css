@@ -240,12 +240,34 @@ body {
 
 .legend-source {
     font-size: 11px;
-    opacity: 0.8;
+    color: color-mix(in srgb, var(--primary-text) 80%, transparent);
     margin-top: 4px;
 }
 
 .legend-source a {
     color: inherit;
+}
+
+/* Uhr-Icon hinter der Quelle (Stand-der-Daten Hover-Tooltip).
+   Dimming via color statt opacity, damit der Tooltip-Subtree voll deckend bleibt. */
+.legend-source-clock {
+    margin-left: 4px;
+    vertical-align: middle;
+    color: color-mix(in srgb, currentColor 55%, transparent);
+    transition: color 0.2s;
+}
+
+.legend-source-clock:hover {
+    color: var(--primary-text);
+}
+
+.legend-source-clock svg {
+    display: block;
+}
+
+/* Tooltip explizit deckend halten (überschreibt geerbtes color-mix vom Parent) */
+.legend-source-clock .info-tooltip {
+    color: var(--primary-text);
 }
 
 .github-links__spacer {
