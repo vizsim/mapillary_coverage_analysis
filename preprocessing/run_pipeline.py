@@ -41,14 +41,24 @@ def _make_mem_logger() -> callable:
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--data-dir", type=Path, default=HERE / "data",
-                   help="Root mit osm/, bkg/, coverage CSV. Default: %(default)s")
-    p.add_argument("--output-dir", type=Path, default=HERE / "data",
-                   help="Wohin .fgb/.pmtiles geschrieben werden. Default: %(default)s")
+    p.add_argument("--data-dir", type=Path,
+                   default=Path(os.environ.get("DATA_DIR", str(HERE / "data"))),
+                   help="Root mit bkg/. Default: $DATA_DIR oder %(default)s")
+    p.add_argument("--output-dir", type=Path,
+                   default=Path(os.environ.get("OUTPUT_DIR", str(HERE / "data"))),
+                   help="Wohin .fgb/.pmtiles geschrieben werden. "
+                        "Default: $OUTPUT_DIR oder %(default)s")
+    p.add_argument("--osm-dir", type=Path,
+                   default=Path(os.environ["OSM_DIR"]) if "OSM_DIR" in os.environ else None,
+                   help="Verzeichnis mit processed_highways_DE-*.pbf. "
+                        "Default: $OSM_DIR oder <data-dir>/osm")
     p.add_argument("--limit-regions", default=None,
                    help="Komma-Liste z.B. DE-HB,DE-HH (Smoke-Test).")
     p.add_argument("--dry-run", action="store_true",
                    help="FGBs schreiben, tippecanoe-Aufruf überspringen.")
+    p.add_argument("--coverage-csv", default=os.environ.get("COVERAGE_CSV"),
+                   help="Override Coverage-Quelle (URL oder Pfad). "
+                        "Default: $COVERAGE_CSV oder pipeline.COVERAGE_CSV_URL.")
     args = p.parse_args()
 
     _setup_logging()
@@ -59,8 +69,10 @@ def main() -> int:
         summary = run_pipeline(
             data_dir=args.data_dir,
             output_dir=args.output_dir,
+            osm_dir=args.osm_dir,
             limit_regions=limit,
             dry_run=args.dry_run,
+            coverage_csv=args.coverage_csv,
             log_memory=_make_mem_logger(),
         )
     except Exception:

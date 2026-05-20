@@ -41,6 +41,12 @@ EXPORT_SPECS: dict[str, dict] = {
     "Gemeinde":   dict(filename="gem_wide",   minzoom=7, maxzoom=10),
 }
 
+# Coverage-CSV wird immer frisch direkt vom Repo gezogen (Single Source of Truth).
+COVERAGE_CSV_URL: str = (
+    "https://raw.githubusercontent.com/vizsim/mapillary_coverage/"
+    "refs/heads/main/output/germany_osm-highways_mp-coverage_latest.csv"
+)
+
 
 # --------------------------------------------------------------------------
 # Discovery + IO
@@ -160,9 +166,13 @@ def attach_admin(lines: gpd.GeoDataFrame, gem_hierarchy: gpd.GeoDataFrame) -> gp
     return out
 
 
-def join_coverage(lines: gpd.GeoDataFrame, coverage_csv: Path) -> gpd.GeoDataFrame:
-    """Coverage-CSV einlesen, auf gekommene osm_ids vorfiltern, dann left-mergen."""
+def join_coverage(lines: gpd.GeoDataFrame, coverage_csv: str | Path = COVERAGE_CSV_URL) -> gpd.GeoDataFrame:
+    """Coverage-CSV einlesen, auf gekommene osm_ids vorfiltern, dann left-mergen.
+
+    ``coverage_csv`` darf URL **oder** lokaler Pfad sein. Default = remote GitHub-Raw.
+    """
     osm_ids_keep = pd.Index(lines["osm_id"].unique())
+    log.info("Lese Coverage-CSV: %s", coverage_csv)
     cov = pd.read_csv(
         coverage_csv,
         usecols=["osm_id", "mapillary_coverage"],
@@ -201,7 +211,7 @@ def aggregate_level(df: pd.DataFrame, level: str, gdf_gem: gpd.GeoDataFrame) -> 
         .sum()
         .reset_index()
     )
-    agg["total_length"] = agg.groupby([group_key, "highway"])["length_m"].transform("sum")
+    agg["total_length"] = agg.groupby([group_key, "highway"], observed=True)["length_m"].transform("sum")
     agg["share"] = agg["length_m"] / agg["total_length"]
 
     agg_all = (
@@ -209,7 +219,7 @@ def aggregate_level(df: pd.DataFrame, level: str, gdf_gem: gpd.GeoDataFrame) -> 
         .sum()
         .reset_index()
     )
-    agg_all["total_length"] = agg_all.groupby(group_key)["length_m"].transform("sum")
+    agg_all["total_length"] = agg_all.groupby(group_key, observed=True)["length_m"].transform("sum")
     agg_all["share"] = agg_all["length_m"] / agg_all["total_length"]
     agg_all["highway"] = "all"
 
@@ -326,17 +336,24 @@ def run_pipeline(
     data_dir: Path,
     output_dir: Path,
     *,
+    osm_dir: Path | None = None,
     limit_regions: list[str] | None = None,
     dry_run: bool = False,
+    coverage_csv: str | Path | None = None,
     log_memory: Callable[[str], None] | None = None,
 ) -> dict:
     """End-to-End pipeline. Liest PBFs pro Region, joint, aggregiert, exportiert.
 
     Args:
-        data_dir: Root mit ``osm/`` (PBFs), ``bkg/DE_VG5000.gpkg``, coverage CSV.
+        data_dir: Root mit ``bkg/DE_VG5000.gpkg`` (BKG-Verwaltungsgrenzen).
         output_dir: Wohin ``{bland,kreise,gem}_wide.{fgb,pmtiles}`` geschrieben wird.
+        osm_dir: Verzeichnis mit ``processed_highways_DE-*.pbf``.
+            Default: ``data_dir / "osm"`` (lokale Entwicklung). Auf dem Server
+            typischerweise ``/home/simon/mapillary_coverage/data/osm/processed``.
         limit_regions: optional Liste von Region-Codes (z.B. ``["DE-HB", "DE-HH"]``).
         dry_run: skipt den ``tippecanoe``-Aufruf (FGBs werden dennoch geschrieben).
+        coverage_csv: URL oder lokaler Pfad. Default = ``COVERAGE_CSV_URL``
+            (frisch aus dem ``vizsim/mapillary_coverage``-Repo).
         log_memory: optionaler Callback ``log_memory(tag: str)`` für RSS-Probes.
     """
     data_dir = Path(data_dir)
@@ -350,8 +367,9 @@ def run_pipeline(
     mem("start")
 
     bkg_gpkg = data_dir / "bkg" / "DE_VG5000.gpkg"
-    coverage_csv = data_dir / "germany_osm-highways_mp-coverage_latest.csv"
-    osm_dir = data_dir / "osm"
+    coverage_source: str | Path = coverage_csv if coverage_csv is not None else COVERAGE_CSV_URL
+    osm_dir = Path(osm_dir) if osm_dir is not None else (data_dir / "osm")
+    log.info("OSM PBF-Verzeichnis: %s", osm_dir)
 
     log.info("Lade BKG-Layer aus %s …", bkg_gpkg)
     gem_hierarchy, gdf_lan, gdf_krs, gdf_gem = load_bkg_layers(bkg_gpkg)
@@ -391,7 +409,7 @@ def run_pipeline(
     mem("after-sjoin")
 
     log.info("Mapillary-Coverage joinen …")
-    all_lines = join_coverage(all_lines, coverage_csv)
+    all_lines = join_coverage(all_lines, coverage_source)
     mem("after-coverage")
 
     log.info("length_m berechnen + highway normalisieren …")

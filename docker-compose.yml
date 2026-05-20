@@ -8,12 +8,21 @@ services:
     memswap_limit: 7g
     cpus: 4.0
     volumes:
-      - ./preprocessing/data:/app/data
+      # BKG-Layer + Outputs (FGB/PMTiles) bleiben beim Repo.
+      - ./preprocessing/data:/app/preprocessing/data
+      # PBFs separat — lokal ./preprocessing/data/osm, auf dem Server typischerweise
+      # /home/simon/mapillary_coverage/data/osm/processed. Setze OSM_DIR vor `docker compose run`.
+      - ${OSM_DIR:-./preprocessing/data/osm}:/srv/osm:ro
     environment:
       - PYTHONUNBUFFERED=1
+      - OSM_DIR=/srv/osm
 
 # Nutzung:
-#   Voller Lauf:
+#   Lokal (PBFs unter preprocessing/data/osm/):
 #     docker compose run --rm pipeline
+#
+#   Server (PBFs unter /home/simon/mapillary_coverage/data/osm/processed):
+#     OSM_DIR=/home/simon/mapillary_coverage/data/osm/processed docker compose run --rm pipeline
+#
 #   Smoke-Test (zwei Stadtstaaten, ohne tippecanoe):
 #     docker compose run --rm pipeline --limit-regions DE-HB,DE-HH --dry-run

@@ -5,10 +5,9 @@ __pycache__
 *.pyc
 *.pyo
 .ipynb_checkpoints
-preprocessing/data/osm/all_highways.parquet
-preprocessing/data/*.fgb
-preprocessing/data/*.pmtiles
-preprocessing/data/*_alt.pmtiles
+# Daten kommen zur Laufzeit per Bind-Mount (./preprocessing/data → /app/data).
+# Nichts davon muss im Image landen.
+preprocessing/data/
 docs
 viz/node_modules
 .vscode

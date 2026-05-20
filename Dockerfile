@@ -34,4 +34,4 @@ ENV PYTHONPATH=/app/preprocessing
 WORKDIR /app/preprocessing
 
 ENTRYPOINT ["python", "run_pipeline.py"]
-CMD ["--data-dir", "/app/data", "--output-dir", "/app/data"]
+CMD []
