@@ -52,6 +52,10 @@ def main() -> int:
                    default=Path(os.environ["OSM_DIR"]) if "OSM_DIR" in os.environ else None,
                    help="Verzeichnis mit processed_highways_DE-*.pbf. "
                         "Default: $OSM_DIR oder <data-dir>/osm")
+    p.add_argument("--bkg-gpkg", type=Path,
+                   default=Path(os.environ["BKG_GPKG"]) if "BKG_GPKG" in os.environ else None,
+                   help="Konkrete BKG-GPKG (DE_VG250.gpkg / DE_VG5000.gpkg). "
+                        "Default: $BKG_GPKG oder höchstauflösende DE_VG*.gpkg in <data-dir>/bkg")
     p.add_argument("--limit-regions", default=None,
                    help="Komma-Liste z.B. DE-HB,DE-HH (Smoke-Test).")
     p.add_argument("--dry-run", action="store_true",
@@ -70,6 +74,7 @@ def main() -> int:
             data_dir=args.data_dir,
             output_dir=args.output_dir,
             osm_dir=args.osm_dir,
+            bkg_gpkg=args.bkg_gpkg,
             limit_regions=limit,
             dry_run=args.dry_run,
             coverage_csv=args.coverage_csv,

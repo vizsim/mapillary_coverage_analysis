@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import gc
 import logging
+import re
 import subprocess
 from pathlib import Path
 from typing import Callable, Iterable
@@ -29,10 +30,11 @@ MAJOR_HIGHWAY: tuple[str, ...] = (
 HIGHWAY_BASE_CAT: list[str] = ["motorway", "trunk", "primary", "secondary", "tertiary", "all"]
 COV_ORDER: list[str] = ["NaN", "pano", "regular"]
 TARGET_CRS: int = 25832
-BKG_LAYER_LAN = "vg5000_lan"
-BKG_LAYER_KRS = "vg5000_krs"
-BKG_LAYER_GEM = "vg5000_gem"
-BKG_LAYER_HIERARCHY = "v_vz5000_gem"
+
+# BKG VG-Dateien (vg5000 = 1:5 Mio, vg250 = 1:250.000, …).
+# Layer-Namen folgen ``vg<scale>_{lan,krs,gem}`` und ``v_vz<scale>_gem``.
+BKG_GPKG_PATTERN = "DE_VG*.gpkg"
+_BKG_SCALE_RE = re.compile(r"VG(\d+)", re.IGNORECASE)
 
 EBENEN: list[str] = ["Bundesland", "Kreis", "Gemeinde"]
 EXPORT_SPECS: dict[str, dict] = {
@@ -89,22 +91,63 @@ def load_pbf_filtered(pbf_path: Path) -> gpd.GeoDataFrame:
     return gdf
 
 
-def load_bkg_layers(gpkg: Path) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
-    """BKG VG5000-Layer in EPSG:25832. Wird *einmal* pro Run geladen.
+def _bkg_scale(gpkg: Path) -> str:
+    """Extrahiert den BKG-Maßstab aus dem Dateinamen (z.B. ``"5000"``, ``"250"``)."""
+    m = _BKG_SCALE_RE.search(Path(gpkg).stem)
+    if not m:
+        raise ValueError(
+            f"Kann BKG-Maßstab nicht aus {Path(gpkg).name!r} ableiten "
+            "(erwartet DE_VG<N>.gpkg)."
+        )
+    return m.group(1)
 
+
+def _bkg_layer_names(gpkg: Path) -> dict[str, str]:
+    """Konstruiert die BKG-Layer-Namen aus dem Maßstab."""
+    s = _bkg_scale(gpkg)
+    return {
+        "lan": f"vg{s}_lan",
+        "krs": f"vg{s}_krs",
+        "gem": f"vg{s}_gem",
+        "hierarchy": f"v_vz{s}_gem",
+    }
+
+
+def discover_bkg_gpkg(bkg_dir: Path) -> Path:
+    """Findet die höchstauflösende ``DE_VG*.gpkg`` in ``bkg_dir``.
+
+    Sortiert nach Maßstab aufsteigend → kleinerer Wert = mehr Detail.
+    Beispiel: VG250 wird VG5000 vorgezogen, wenn beide vorhanden sind.
+    """
+    bkg_dir = Path(bkg_dir)
+    candidates = list(bkg_dir.glob(BKG_GPKG_PATTERN))
+    if not candidates:
+        raise FileNotFoundError(f"Keine {BKG_GPKG_PATTERN} in {bkg_dir}")
+    candidates.sort(key=lambda p: int(_bkg_scale(p)))
+    return candidates[0]
+
+
+def load_bkg_layers(gpkg: Path) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    """BKG VG-Layer in EPSG:25832. Wird *einmal* pro Run geladen.
+
+    Layer-Namen werden aus dem ``DE_VG<scale>.gpkg``-Dateinamen abgeleitet.
     Returns ``(gem_hierarchy, gdf_lan, gdf_krs, gdf_gem)``.
     """
     gpkg = Path(gpkg)
-    gem_hierarchy = gpd.read_file(gpkg, layer=BKG_LAYER_HIERARCHY).rename(
+    names = _bkg_layer_names(gpkg)
+    log.info("BKG-Layer aus %s (VG%s): %s",
+             gpkg.name, _bkg_scale(gpkg), names)
+
+    gem_hierarchy = gpd.read_file(gpkg, layer=names["hierarchy"]).rename(
         columns={"GEN_L": "Bundesland", "GEN_K": "Kreis", "GEN_G": "Gemeinde"}
     )
     if "AGS_G" in gem_hierarchy.columns:
         gem_hierarchy["AGS_0"] = gem_hierarchy["AGS_G"]
 
-    gdf_lan = gpd.read_file(gpkg, layer=BKG_LAYER_LAN).rename(columns={"GEN": "Bundesland"})
+    gdf_lan = gpd.read_file(gpkg, layer=names["lan"]).rename(columns={"GEN": "Bundesland"})
     gdf_lan = gdf_lan[gdf_lan["GF"] == 9].copy()
-    gdf_krs = gpd.read_file(gpkg, layer=BKG_LAYER_KRS).rename(columns={"GEN": "Kreis"})
-    gdf_gem = gpd.read_file(gpkg, layer=BKG_LAYER_GEM).rename(columns={"GEN": "Gemeinde"})
+    gdf_krs = gpd.read_file(gpkg, layer=names["krs"]).rename(columns={"GEN": "Kreis"})
+    gdf_gem = gpd.read_file(gpkg, layer=names["gem"]).rename(columns={"GEN": "Gemeinde"})
 
     for g in (gem_hierarchy, gdf_lan, gdf_krs, gdf_gem):
         if g.crs is not None and g.crs.to_epsg() != TARGET_CRS:
@@ -337,6 +380,7 @@ def run_pipeline(
     output_dir: Path,
     *,
     osm_dir: Path | None = None,
+    bkg_gpkg: Path | None = None,
     limit_regions: list[str] | None = None,
     dry_run: bool = False,
     coverage_csv: str | Path | None = None,
@@ -345,11 +389,13 @@ def run_pipeline(
     """End-to-End pipeline. Liest PBFs pro Region, joint, aggregiert, exportiert.
 
     Args:
-        data_dir: Root mit ``bkg/DE_VG5000.gpkg`` (BKG-Verwaltungsgrenzen).
+        data_dir: Root mit ``bkg/`` (BKG-Verwaltungsgrenzen).
         output_dir: Wohin ``{bland,kreise,gem}_wide.{fgb,pmtiles}`` geschrieben wird.
         osm_dir: Verzeichnis mit ``processed_highways_DE-*.pbf``.
             Default: ``data_dir / "osm"`` (lokale Entwicklung). Auf dem Server
             typischerweise ``/home/simon/mapillary_coverage/data/osm/processed``.
+        bkg_gpkg: Konkrete BKG-GPKG. Default: höchstauflösende ``DE_VG*.gpkg``
+            in ``data_dir / "bkg"`` (VG250 schlägt VG5000 wenn vorhanden).
         limit_regions: optional Liste von Region-Codes (z.B. ``["DE-HB", "DE-HH"]``).
         dry_run: skipt den ``tippecanoe``-Aufruf (FGBs werden dennoch geschrieben).
         coverage_csv: URL oder lokaler Pfad. Default = ``COVERAGE_CSV_URL``
@@ -366,9 +412,10 @@ def run_pipeline(
 
     mem("start")
 
-    bkg_gpkg = data_dir / "bkg" / "DE_VG5000.gpkg"
+    bkg_gpkg = Path(bkg_gpkg) if bkg_gpkg is not None else discover_bkg_gpkg(data_dir / "bkg")
     coverage_source: str | Path = coverage_csv if coverage_csv is not None else COVERAGE_CSV_URL
     osm_dir = Path(osm_dir) if osm_dir is not None else (data_dir / "osm")
+    log.info("BKG-GPKG: %s", bkg_gpkg)
     log.info("OSM PBF-Verzeichnis: %s", osm_dir)
 
     log.info("Lade BKG-Layer aus %s …", bkg_gpkg)
