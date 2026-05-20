@@ -1,0 +1,75 @@
+"""Headless-CLI für die Coverage-Pipeline.
+
+Beispiele:
+    python run_pipeline.py
+    python run_pipeline.py --limit-regions DE-HB,DE-HH --dry-run
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import os
+import sys
+from pathlib import Path
+
+import psutil
+
+from pipeline import run_pipeline
+
+HERE = Path(__file__).resolve().parent
+
+
+def _setup_logging() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        stream=sys.stdout,
+    )
+
+
+def _make_mem_logger() -> callable:
+    proc = psutil.Process(os.getpid())
+    log = logging.getLogger("mem")
+
+    def _mem(tag: str) -> None:
+        rss_gb = proc.memory_info().rss / 1e9
+        log.info("MEM %-22s rss=%.2f GB", tag, rss_gb)
+
+    return _mem
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--data-dir", type=Path, default=HERE / "data",
+                   help="Root mit osm/, bkg/, coverage CSV. Default: %(default)s")
+    p.add_argument("--output-dir", type=Path, default=HERE / "data",
+                   help="Wohin .fgb/.pmtiles geschrieben werden. Default: %(default)s")
+    p.add_argument("--limit-regions", default=None,
+                   help="Komma-Liste z.B. DE-HB,DE-HH (Smoke-Test).")
+    p.add_argument("--dry-run", action="store_true",
+                   help="FGBs schreiben, tippecanoe-Aufruf überspringen.")
+    args = p.parse_args()
+
+    _setup_logging()
+    log = logging.getLogger("run_pipeline")
+
+    limit = [r.strip() for r in args.limit_regions.split(",")] if args.limit_regions else None
+    try:
+        summary = run_pipeline(
+            data_dir=args.data_dir,
+            output_dir=args.output_dir,
+            limit_regions=limit,
+            dry_run=args.dry_run,
+            log_memory=_make_mem_logger(),
+        )
+    except Exception:
+        log.exception("Pipeline fehlgeschlagen")
+        return 1
+
+    log.info("Summary:\n%s", json.dumps(summary, indent=2, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

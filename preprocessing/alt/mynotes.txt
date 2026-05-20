@@ -1,0 +1,12 @@
+# get the parquets from my server
+# scp simon@46.224.84.175:~/mapillary_coverage/output/*.parquet .
+
+
+
+
+# raw pbfs
+#scp simon@46.224.84.175:~/mapillary_coverage/osm_geofabrik_pbf/*.pbf .
+
+# processed_osm_files
+#scp simon@46.224.84.175:~/mapillary_coverage/processed_osm_files/*.pbf .
+

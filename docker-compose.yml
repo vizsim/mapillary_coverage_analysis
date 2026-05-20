@@ -1,0 +1,19 @@
+services:
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mapillary-coverage-pipeline:latest
+    mem_limit: 7g
+    memswap_limit: 7g
+    cpus: 4.0
+    volumes:
+      - ./preprocessing/data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+
+# Nutzung:
+#   Voller Lauf:
+#     docker compose run --rm pipeline
+#   Smoke-Test (zwei Stadtstaaten, ohne tippecanoe):
+#     docker compose run --rm pipeline --limit-regions DE-HB,DE-HH --dry-run

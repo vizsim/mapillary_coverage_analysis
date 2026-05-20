@@ -1,0 +1,16 @@
+.git
+.gitignore
+.venv
+__pycache__
+*.pyc
+*.pyo
+.ipynb_checkpoints
+preprocessing/data/osm/all_highways.parquet
+preprocessing/data/*.fgb
+preprocessing/data/*.pmtiles
+preprocessing/data/*_alt.pmtiles
+docs
+viz/node_modules
+.vscode
+.idea
+*.log
