@@ -127,6 +127,53 @@ def discover_bkg_gpkg(bkg_dir: Path) -> Path:
     return candidates[0]
 
 
+def _filter_canonical_polygons(
+    gdf: gpd.GeoDataFrame, dedup_key: str, label: str
+) -> gpd.GeoDataFrame:
+    """Filtert BKG VG-Layer auf kanonische Land-Geometrie + dedupliziert.
+
+    BKG-Konvention (variiert zwischen VG-Versionen):
+      * VG5000: ``GF==9`` ist die aggregierte Land-Geometrie pro Verwaltungseinheit.
+      * VG250: typischerweise ``GF==4`` (Landfläche, Strukturmerkmale unberücksichtigt).
+        ``GF==3`` = Land mit Strukturen (Wasser drin als Loch).
+        ``GF in {1, 2}`` = Wasserfläche.
+
+    Strategie: erst ``GF==9`` versuchen (VG5000-Pfad). Sonst ``GF==4``. Sonst alles.
+    Danach Deduplikation nach ``dedup_key`` — bei Festland+Insel das flächengrößte.
+    """
+    if "GF" not in gdf.columns:
+        return gdf
+
+    dist = gdf["GF"].value_counts().to_dict()
+    log.info("  %s GF-Verteilung: %s (n=%d)", label, dist, len(gdf))
+
+    if (gdf["GF"] == 9).any():
+        out = gdf[gdf["GF"] == 9].copy()
+        chosen = "GF==9"
+    elif (gdf["GF"] == 4).any():
+        out = gdf[gdf["GF"] == 4].copy()
+        chosen = "GF==4"
+    else:
+        out = gdf.copy()
+        chosen = "kein GF-Filter"
+
+    if dedup_key in out.columns:
+        before = len(out)
+        # Festland+Insel haben gleichen Namen → größere Fläche behalten
+        out = (
+            out.assign(_area=out.geometry.area)
+               .sort_values("_area", ascending=False)
+               .drop_duplicates(subset=[dedup_key], keep="first")
+               .drop(columns="_area")
+        )
+        log.info("  %s gewählt %s → %d Features (vor Dedup: %d)",
+                 label, chosen, len(out), before)
+    else:
+        log.info("  %s gewählt %s → %d Features (kein Dedup-Key)",
+                 label, chosen, len(out))
+    return out
+
+
 def load_bkg_layers(gpkg: Path) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
     """BKG VG-Layer in EPSG:25832. Wird *einmal* pro Run geladen.
 
@@ -145,9 +192,11 @@ def load_bkg_layers(gpkg: Path) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd
         gem_hierarchy["AGS_0"] = gem_hierarchy["AGS_G"]
 
     gdf_lan = gpd.read_file(gpkg, layer=names["lan"]).rename(columns={"GEN": "Bundesland"})
-    gdf_lan = gdf_lan[gdf_lan["GF"] == 9].copy()
+    gdf_lan = _filter_canonical_polygons(gdf_lan, "Bundesland", "lan")
     gdf_krs = gpd.read_file(gpkg, layer=names["krs"]).rename(columns={"GEN": "Kreis"})
+    gdf_krs = _filter_canonical_polygons(gdf_krs, "ARS", "krs")
     gdf_gem = gpd.read_file(gpkg, layer=names["gem"]).rename(columns={"GEN": "Gemeinde"})
+    gdf_gem = _filter_canonical_polygons(gdf_gem, "AGS_0", "gem")
 
     for g in (gem_hierarchy, gdf_lan, gdf_krs, gdf_gem):
         if g.crs is not None and g.crs.to_epsg() != TARGET_CRS:
