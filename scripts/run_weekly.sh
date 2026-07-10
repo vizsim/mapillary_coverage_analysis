@@ -25,5 +25,19 @@ cd "$REPO"
   echo "--- docker compose run ---"
   OSM_DIR="$OSM_DIR" docker compose run --rm pipeline
   echo
+  echo "--- git commit & push pmtiles ---"
+  PMTILES=(
+    preprocessing/data/bland_wide.pmtiles
+    preprocessing/data/gem_wide.pmtiles
+    preprocessing/data/kreise_wide.pmtiles
+  )
+  git add "${PMTILES[@]}"
+  if git diff --cached --quiet; then
+    echo "Keine Änderungen an den PMTiles – nichts zu committen."
+  else
+    git commit -m "chore: weekly pmtiles update $(date +%Y-%m-%d)"
+    git push origin main
+  fi
+  echo
   echo "=== $(date -Iseconds)  DONE ==="
 } &>> "$LOG_FILE"
