@@ -1,8 +1,8 @@
 """Memory-efficient OSM-Highway / Mapillary-Coverage pipeline.
 
 Pro-Region streaming so the peak RAM stays in the 1-2 GB range
-(fits an 8 GB Docker container). Reused by both the notebook
-(``load_pbf_v04.ipynb``) and the headless CLI (``run_pipeline.py``).
+(fits an 8 GB Docker container). Entry point: the headless CLI
+(``run_pipeline.py``).
 """
 from __future__ import annotations
 

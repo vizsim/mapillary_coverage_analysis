@@ -11,7 +11,7 @@ Falls das GPKG im übergeordneten Ordner liegt (`preprocessing/data/DE_VG5000.gp
 ln -s ../DE_VG5000.gpkg DE_VG5000.gpkg
 ```
 
-Im Notebook genutzte Layer:
+In der Pipeline (`preprocessing/pipeline.py`) genutzte Layer:
 - `vg5000_lan` – Bundesländer
 - `vg5000_krs` – Kreise
 - `vg5000_gem` – Gemeinden
