@@ -15,7 +15,10 @@ RUN make -j"$(nproc)" && make install PREFIX=/opt/tippecanoe
 FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    UV_LINK_MODE=copy \
+    UV_NO_CACHE=1 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libsqlite3-0 libexpat1 ca-certificates \
@@ -24,9 +27,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=tippecanoe-builder /opt/tippecanoe/bin/tippecanoe /usr/local/bin/tippecanoe
 COPY --from=tippecanoe-builder /opt/tippecanoe/bin/tile-join  /usr/local/bin/tile-join
 
+COPY --from=ghcr.io/astral-sh/uv:0.12.6 /uv /usr/local/bin/uv
+
+# Abhängigkeiten exakt aus uv.lock; --locked bricht ab, wenn pyproject.toml und
+# uv.lock auseinanderlaufen (dann lokal `uv lock` ausführen und committen).
 WORKDIR /app
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml uv.lock /app/
+RUN uv sync --locked --no-dev --no-install-project
+ENV PATH="/opt/venv/bin:$PATH"
 
 COPY preprocessing /app/preprocessing
 
