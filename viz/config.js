@@ -161,7 +161,7 @@ export const TRAFFIC_SIGNS_ICON_MIN_ZOOM = 13;
 export const trafficSignsConfig = {
     sourceId: 'mapillary-traffic-signs',
     sourceLayer: 'default',
-    pmtiles: `${PMTILES_PREFIX}https://raw.githubusercontent.com/vizsim/mapillary_trafficsigns/feature/docker-notebook/use_cases/cycleway_complete_campaign/ts_output/mapillary_trafficsigns_bicycle_latest.pmtiles`,
+    pmtiles: `${PMTILES_PREFIX}https://data.vizsim.de/mapillary_trafficsigns/cycleway-campaign/mapillary_trafficsigns_bicycle_latest.pmtiles`,
     minzoom: 9,
     maxzoom: 22,
     /** Fallback icon id when no SVG matches (used in symbol layer and styleimagemissing). */

@@ -14,12 +14,10 @@ const COVERAGE_COMMIT_API =
     '?path=preprocessing/data/gem_wide.pmtiles&per_page=1';
 
 const STREETS_METADATA_URL =
-    'https://raw.githubusercontent.com/vizsim/mapillary_coverage/' +
-    'refs/heads/main/output/ml_metadata.json';
+    'https://data.vizsim.de/mapillary_coverage/ml_metadata.json';
 
 const TRAFFIC_SIGNS_METADATA_URL =
-    'https://raw.githubusercontent.com/vizsim/mapillary_trafficsigns/' +
-    'feature/docker-notebook/output/ml-ts_metadata.json';
+    'https://data.vizsim.de/mapillary_trafficsigns/ml-ts_metadata.json';
 
 function formatDate(isoDate) {
     const d = new Date(isoDate);

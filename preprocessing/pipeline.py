@@ -43,10 +43,10 @@ EXPORT_SPECS: dict[str, dict] = {
     "Gemeinde":   dict(filename="gem_wide",   minzoom=7, maxzoom=10),
 }
 
-# Coverage-CSV wird immer frisch direkt vom Repo gezogen (Single Source of Truth).
+# Coverage-CSV wird immer frisch direkt von data.vizsim.de gezogen (Single Source of Truth).
 COVERAGE_CSV_URL: str = (
-    "https://raw.githubusercontent.com/vizsim/mapillary_coverage/"
-    "refs/heads/main/output/germany_osm-highways_mp-coverage_latest.csv"
+    "https://data.vizsim.de/mapillary_coverage/"
+    "germany_osm-highways_mp-coverage_latest.csv"
 )
 
 
@@ -448,7 +448,7 @@ def run_pipeline(
         limit_regions: optional Liste von Region-Codes (z.B. ``["DE-HB", "DE-HH"]``).
         dry_run: skipt den ``tippecanoe``-Aufruf (FGBs werden dennoch geschrieben).
         coverage_csv: URL oder lokaler Pfad. Default = ``COVERAGE_CSV_URL``
-            (frisch aus dem ``vizsim/mapillary_coverage``-Repo).
+            (frisch von ``data.vizsim.de/mapillary_coverage``).
         log_memory: optionaler Callback ``log_memory(tag: str)`` für RSS-Probes.
     """
     data_dir = Path(data_dir)
