@@ -49,6 +49,13 @@ COVERAGE_CSV_URL: str = (
     "germany_osm-highways_mp-coverage_latest.csv"
 )
 
+# Cloudflare vor data.vizsim.de blockt den Default-UA ``Python-urllib/x.y``
+# (403, Error 1010) → eigenen User-Agent mitschicken.
+HTTP_USER_AGENT: str = (
+    "mapillary-coverage-pipeline/1.0 "
+    "(+https://github.com/vizsim/mapillary_coverage_analysis)"
+)
+
 
 # --------------------------------------------------------------------------
 # Discovery + IO
@@ -261,14 +268,17 @@ def attach_admin(lines: gpd.GeoDataFrame, gem_hierarchy: gpd.GeoDataFrame) -> gp
 def join_coverage(lines: gpd.GeoDataFrame, coverage_csv: str | Path = COVERAGE_CSV_URL) -> gpd.GeoDataFrame:
     """Coverage-CSV einlesen, auf gekommene osm_ids vorfiltern, dann left-mergen.
 
-    ``coverage_csv`` darf URL **oder** lokaler Pfad sein. Default = remote GitHub-Raw.
+    ``coverage_csv`` darf URL **oder** lokaler Pfad sein. Default = ``COVERAGE_CSV_URL``.
     """
     osm_ids_keep = pd.Index(lines["osm_id"].unique())
     log.info("Lese Coverage-CSV: %s", coverage_csv)
+    # storage_options = HTTP-Header; bei lokalen Pfaden würde pandas einen Fehler werfen.
+    is_url = str(coverage_csv).startswith(("http://", "https://"))
     cov = pd.read_csv(
         coverage_csv,
         usecols=["osm_id", "mapillary_coverage"],
         dtype={"osm_id": "int64"},
+        storage_options={"User-Agent": HTTP_USER_AGENT} if is_url else None,
     )
     cov = cov[cov["osm_id"].isin(osm_ids_keep)]
     cov["mapillary_coverage"] = cov["mapillary_coverage"].astype("category")
