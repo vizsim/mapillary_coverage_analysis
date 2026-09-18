@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Wöchentlicher Pipeline-Lauf (Cronjob-Wrapper).
-# - Holt Code-Updates per `git pull --ff-only`
+# - Holt Code-Updates per `git pull --ff-only` und baut das Image neu
 # - Startet die Docker-Compose-Pipeline mit dem externen PBF-Verzeichnis
 # - Schreibt timestamp-Logs unter logs/
 
@@ -21,6 +21,11 @@ cd "$REPO"
   echo
   echo "--- git pull ---"
   git pull --ff-only origin main
+  echo
+  # Code liegt per COPY im Image (nicht gemountet) → nach git pull neu bauen,
+  # sonst läuft der Container mit altem pipeline.py. Ohne Änderungen: Layer-Cache.
+  echo "--- docker compose build ---"
+  OSM_DIR="$OSM_DIR" docker compose build pipeline
   echo
   echo "--- docker compose run ---"
   OSM_DIR="$OSM_DIR" docker compose run --rm pipeline
